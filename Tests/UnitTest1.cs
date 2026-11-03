@@ -17,7 +17,7 @@ public class UnitTest1
     public void Test1()
     {
         var renderer = new HtmlRenderer();
-        var props = new UserCardProps { IsUserLoggedIn = true };
+        var props = new UserCardProps { IsUserLoggedIn = false };
         var card = new UserCard { Props = props };
         var node = card.Render();
 

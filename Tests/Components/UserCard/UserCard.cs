@@ -21,10 +21,24 @@ public class UserCard : Component<UserCardProps>
         }
         
         return (
-            H("p", new HTMLParagraphElementProps()
+            H("div", new HTMLDivElementProps()
             {
-                TextContent = "You need to log in",
-            })
+                ClassName = "user-card-preview"
+            }, 
+                H("div", new HTMLDivElementProps()
+                {
+                    ClassName = "card-main"  
+                },
+                    H("h1", new HTMLHeadingElementProps()
+                    {
+                        TextContent = "Hello"
+                    }),
+                    H("p", new HTMLParagraphElementProps()
+                    {
+                        TextContent = "You're not logged in"
+                    })
+                )
+            )
         );
     }
 }

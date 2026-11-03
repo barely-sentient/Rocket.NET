@@ -16,7 +16,8 @@ public class HtmlRenderer : IComponentRenderer
 
     static HtmlRenderer()
     {
-        _typeMap.TryAdd(typeof(HTMLParagraphElement), "p");
+        foreach (var kv in UI.Primitives)
+            _typeMap[kv.Value] = kv.Key;
     }
 
     public void Draw(Node rootNode)
@@ -31,17 +32,28 @@ public class HtmlRenderer : IComponentRenderer
         var indent = new string(' ', depth * 2);
         var tag = GetTag(node.Type);
 
-        builder.Append(indent).Append('<').Append(tag);
-        AppendProps(node.UntypedProps);
+        string? textContent = null;
+        if (node.UntypedProps != null)
+        {
+            var t = node.UntypedProps.GetType();
+            var f = t.GetField("TextContent");
+            var p = t.GetProperty("TextContent");
+            textContent = f?.GetValue(node.UntypedProps) as string ?? p?.GetValue(node.UntypedProps) as string;
+        }
 
-        if (node.Children.Length == 0)
+        builder.Append(indent).Append('<').Append(tag);
+        AppendProps(node.UntypedProps, "TextContent");
+
+        bool hasChildren = node.Children.Length > 0 || !string.IsNullOrEmpty(textContent);
+        if (!hasChildren)
         {
             builder.Append(" />\n");
             return;
         }
 
         builder.Append(">\n");
-
+        if (!string.IsNullOrEmpty(textContent))
+            builder.Append(indent).Append("  ").Append(WebUtility.HtmlEncode(textContent)).Append('\n');
         foreach (var child in node.Children)
             DrawNode(child, depth + 1);
 
@@ -53,7 +65,7 @@ public class HtmlRenderer : IComponentRenderer
         return _typeMap.GetValueOrDefault(type, "HTMLUnknownTag");
     }
 
-    private void AppendProps(object? props)
+    private void AppendProps(object? props, string? skip = null)
     {
         if (props == null) return;
 
@@ -62,11 +74,13 @@ public class HtmlRenderer : IComponentRenderer
         foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
             if (!prop.CanRead || prop.GetIndexParameters().Length > 0) continue;
+            if (prop.Name == skip) continue;
             AppendAttribute(prop.Name, prop.GetValue(props));
         }
 
         foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
         {
+            if (field.Name == skip) continue;
             AppendAttribute(field.Name, field.GetValue(props));
         }
     }
@@ -86,8 +100,10 @@ public class HtmlRenderer : IComponentRenderer
             _ => value.ToString() ?? string.Empty
         };
 
+        string attrName = name == "ClassName" ? "class" : ToKebabCase(name);
+
         builder.Append(' ')
-               .Append(ToKebabCase(name))
+               .Append(attrName)
                .Append("=\"")
                .Append(WebUtility.HtmlEncode(text))
                .Append('"');

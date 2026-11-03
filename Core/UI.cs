@@ -148,6 +148,8 @@ namespace Rocket.Core
         /// </summary>
         private static Dictionary<string, Type> _primitives = new Dictionary<string, Type>();
         
+        public static Dictionary<string, Type> Primitives => _primitives;
+        
         /// <summary>
         /// Sets up the primitive dictionary
         /// </summary>
