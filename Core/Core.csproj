@@ -5,8 +5,4 @@
         <RootNamespace>Rocket.Core</RootNamespace>
     </PropertyGroup>
 
-    <ItemGroup>
-      <Folder Include="Primitives\" />
-    </ItemGroup>
-
 </Project>

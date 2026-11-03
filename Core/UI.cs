@@ -153,8 +153,69 @@ namespace Rocket.Core
         /// </summary>
         static UI()
         {
-            _primitives.Add("p", typeof(HTMLParagraphElement));
-            _primitives.Add("a", typeof(HTMLAnchorElement));
+            RegisterPrimitive("p", typeof(HTMLParagraphElement));
+            RegisterPrimitive("a", typeof(HTMLAnchorElement));
+            RegisterPrimitive("article", typeof(HTMLArticleElement));
+            RegisterPrimitive("audio", typeof(HTMLAudioElement));
+            RegisterPrimitive("button", typeof(HTMLButtonElement));
+            RegisterPrimitive("div", typeof(HTMLDivElement));
+            RegisterPrimitive("footer", typeof(HTMLFooterElement));
+            RegisterPrimitive("form", typeof(HTMLFormElement));
+            RegisterPrimitive("header", typeof(HTMLHeaderElement));
+            RegisterPrimitive("h1", typeof(HTMLHeadingElement));
+            RegisterPrimitive("h2", typeof(HTMLHeadingElement));
+            RegisterPrimitive("h3", typeof(HTMLHeadingElement));
+            RegisterPrimitive("h4", typeof(HTMLHeadingElement));
+            RegisterPrimitive("h5", typeof(HTMLHeadingElement));
+            RegisterPrimitive("h6", typeof(HTMLHeadingElement));
+            RegisterPrimitive("img", typeof(HTMLImageElement));
+            RegisterPrimitive("input", typeof(HTMLInputElement));
+            RegisterPrimitive("label", typeof(HTMLLabelElement));
+            RegisterPrimitive("li", typeof(HTMLListItemElement));
+            RegisterPrimitive("main", typeof(HTMLMainElement));
+            RegisterPrimitive("nav", typeof(HTMLNavElement));
+            RegisterPrimitive("ol", typeof(HTMLOListElement));
+            RegisterPrimitive("option", typeof(HTMLOptionElement));
+            RegisterPrimitive("section", typeof(HTMLSectionElement));
+            RegisterPrimitive("select", typeof(HTMLSelectElement));
+            RegisterPrimitive("span", typeof(HTMLSpanElement));
+            RegisterPrimitive("td", typeof(HTMLTableCellElement));
+            RegisterPrimitive("table", typeof(HTMLTableElement));
+            RegisterPrimitive("th", typeof(HTMLTableHeaderCellElement));
+            RegisterPrimitive("tr", typeof(HTMLTableRowElement));
+            RegisterPrimitive("textarea", typeof(HTMLTextAreaElement));
+            RegisterPrimitive("ul", typeof(HTMLUListElement));
+            RegisterPrimitive("video", typeof(HTMLVideoElement));
+            RegisterPrimitive("br", typeof(HTMLBrElement));
+            RegisterPrimitive("hr", typeof(HTMLHrElement));
+            RegisterPrimitive("strong", typeof(HTMLStrongElement));
+            RegisterPrimitive("em", typeof(HTMLEmElement));
+            RegisterPrimitive("code", typeof(HTMLCodeElement));
+            RegisterPrimitive("pre", typeof(HTMLPreElement));
+            RegisterPrimitive("blockquote", typeof(HTMLBlockquoteElement));
+            RegisterPrimitive("aside", typeof(HTMLAsideElement));
+            RegisterPrimitive("canvas", typeof(HTMLCanvasElement));
+            RegisterPrimitive("iframe", typeof(HTMLIframeElement));
+            RegisterPrimitive("small", typeof(HTMLSmallElement));
+            RegisterPrimitive("b", typeof(HTMLBoldElement));
+            RegisterPrimitive("i", typeof(HTMLItalicElement));
+            RegisterPrimitive("u", typeof(HTMLUnderlineElement));
+            RegisterPrimitive("mark", typeof(HTMLMarkElement));
+            RegisterPrimitive("del", typeof(HTMLDelElement));
+            RegisterPrimitive("ins", typeof(HTMLInsElement));
+            RegisterPrimitive("sub", typeof(HTMLSubElement));
+            RegisterPrimitive("sup", typeof(HTMLSupElement));
+            RegisterPrimitive("time", typeof(HTMLTimeElement));
+            RegisterPrimitive("details", typeof(HTMLDetailsElement));
+            RegisterPrimitive("summary", typeof(HTMLSummaryElement));
+            RegisterPrimitive("progress", typeof(HTMLProgressElement));
+            RegisterPrimitive("fieldset", typeof(HTMLFieldsetElement));
+            RegisterPrimitive("legend", typeof(HTMLLegendElement));
+        }
+
+        private static void RegisterPrimitive(string tagName, Type type)
+        {
+            _primitives.Add(tagName, type);
         }
 
         /// <summary>

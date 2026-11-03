@@ -1,0 +1,8 @@
+namespace Rocket.Core.Components
+{
+    public class HTMLMainElement
+    {}
+
+    public class HTMLMainElementProps : IntrinsicAttributes
+    {}
+}
