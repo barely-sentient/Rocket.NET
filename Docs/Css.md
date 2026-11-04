@@ -18,7 +18,7 @@ UI.Stylesheets.Add(Stylesheet.FromCss("div { display: flex; }"));
 var engine = new CssEngine();
 engine.AddStylesheet(sheet);
 
-var node = new Node<HTMLButtonElementProps>(typeof(HTMLButtonElement), new HTMLButtonElementProps());
+var node = Button(new HTMLButtonElementProps());
 engine.ApplyComputedStyles(node, 800, 600, Orientation.Portrait);
 
 Console.WriteLine(node.ComputedStyle);        // "color: black; padding: 8px;"
@@ -56,7 +56,7 @@ var css = "button { color: black; transition: color 1s linear; } button:hover { 
 var engine = new CssEngine();
 engine.AddStylesheet(css);
 
-var node = new Node<HTMLButtonElementProps>(typeof(HTMLButtonElement), new HTMLButtonElementProps());
+var node = Button(new HTMLButtonElementProps());
 engine.ComputeStyle(node, 0);          // base
 
 node.Hovered = true;
