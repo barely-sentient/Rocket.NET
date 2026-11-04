@@ -106,7 +106,7 @@ namespace Tests
         public void Context_ReturnsDefaultWithoutProvider()
         {
             var ctx = CreateContext("default");
-            Assert.Equal("default", UseContext(ctx));
+            Assert.Equal("default", Context(ctx));
         }
 
         [Fact]
@@ -114,9 +114,9 @@ namespace Tests
         {
             var ctx = CreateContext("default");
             ComponentContext.PushContext(ctx, "provided");
-            Assert.Equal("provided", UseContext(ctx));
+            Assert.Equal("provided", Context(ctx));
             ComponentContext.PopContext();
-            Assert.Equal("default", UseContext(ctx));
+            Assert.Equal("default", Context(ctx));
         }
 
         [Fact]
@@ -129,16 +129,9 @@ namespace Tests
             };
 
             provider.PushContext();
-            Assert.Equal("provided", UseContext(ctx));
+            Assert.Equal("provided", Context(ctx));
             provider.PopContext();
-            Assert.Equal("default", UseContext(ctx));
-        }
-
-        [Fact]
-        public void UseState_AliasWorks()
-        {
-            var (value, _) = UseState(99);
-            Assert.Equal(99, value);
+            Assert.Equal("default", Context(ctx));
         }
 
         [Fact]
@@ -146,6 +139,192 @@ namespace Tests
         {
             int runs = 0;
             SideEffect(() => { runs++; }, null);
+            Assert.Equal(1, runs);
+        }
+
+        [Fact]
+        public void Reducer_ReturnsInitialValue()
+        {
+            var (state, _) = Reducer((int s, int a) => s + a, 7);
+            Assert.Equal(7, state);
+        }
+
+        [Fact]
+        public void Reducer_DispatchUpdatesStateAcrossRerender()
+        {
+            var instance = new Instance();
+            ComponentContext.CurrentInstance = instance;
+            instance.ResetHooks();
+
+            var (_, dispatch) = Reducer((int s, int a) => s + a, 0);
+            dispatch(3);
+            dispatch(4);
+
+            instance.HookIndex = 0;
+            var (state, _) = Reducer((int s, int a) => s + a, 0);
+            Assert.Equal(7, state);
+
+            ComponentContext.CurrentInstance = null;
+        }
+
+        [Fact]
+        public void Reducer_InitOverloadComputesInitialState()
+        {
+            var instance = new Instance();
+            ComponentContext.CurrentInstance = instance;
+            instance.ResetHooks();
+
+            var (state, _) = Reducer((int s, int a) => s + a, 5, (int x) => x * 2);
+            Assert.Equal(10, state);
+
+            ComponentContext.CurrentInstance = null;
+        }
+
+        [Fact]
+        public void Memo_DoesNotRecomputeWithSameDependencies()
+        {
+            var instance = new Instance();
+            ComponentContext.CurrentInstance = instance;
+            instance.ResetHooks();
+
+            int calls = 0;
+            var first = Memo(() => { calls++; return calls; }, new object[] { 1 });
+            Assert.Equal(1, first);
+
+            instance.HookIndex = 0;
+            var second = Memo(() => { calls++; return calls; }, new object[] { 1 });
+            Assert.Equal(1, second);
+            Assert.Equal(1, calls);
+
+            ComponentContext.CurrentInstance = null;
+        }
+
+        [Fact]
+        public void Memo_RecomputesWhenDependenciesChange()
+        {
+            var instance = new Instance();
+            ComponentContext.CurrentInstance = instance;
+            instance.ResetHooks();
+
+            int calls = 0;
+            var first = Memo(() => { calls++; return calls * 10; }, new object[] { 1 });
+            Assert.Equal(10, first);
+
+            instance.HookIndex = 0;
+            var second = Memo(() => { calls++; return calls * 10; }, new object[] { 2 });
+            Assert.Equal(20, second);
+            Assert.Equal(2, calls);
+
+            ComponentContext.CurrentInstance = null;
+        }
+
+        [Fact]
+        public void Memo_StandaloneEvaluatesFactory()
+        {
+            int calls = 0;
+            var value = Memo(() => { calls++; return 42; }, null);
+            Assert.Equal(42, value);
+            Assert.Equal(1, calls);
+        }
+
+        [Fact]
+        public void Callback_PreservesIdentityWithSameDependencies()
+        {
+            var instance = new Instance();
+            ComponentContext.CurrentInstance = instance;
+            instance.ResetHooks();
+
+            Action first = Callback(() => { }, new object[] { 1 });
+            instance.HookIndex = 0;
+            Action second = Callback(() => { }, new object[] { 1 });
+            Assert.Same(first, second);
+
+            ComponentContext.CurrentInstance = null;
+        }
+
+        [Fact]
+        public void Callback_ChangesIdentityWhenDependenciesChange()
+        {
+            var instance = new Instance();
+            ComponentContext.CurrentInstance = instance;
+            instance.ResetHooks();
+
+            Action first = Callback(() => { }, new object[] { 1 });
+            instance.HookIndex = 0;
+            Action second = Callback(() => { }, new object[] { 2 });
+            Assert.NotSame(first, second);
+
+            ComponentContext.CurrentInstance = null;
+        }
+
+        [Fact]
+        public void Callback_GenericInfersDelegateType()
+        {
+            var instance = new Instance();
+            ComponentContext.CurrentInstance = instance;
+            instance.ResetHooks();
+
+            var cb = Callback((int x) => x + 1, new object[] { 1 });
+            Assert.Equal(6, cb(5));
+
+            ComponentContext.CurrentInstance = null;
+        }
+
+        [Fact]
+        public void Ref_PreservesInstanceAndMutationsAcrossRerender()
+        {
+            var instance = new Instance();
+            ComponentContext.CurrentInstance = instance;
+            instance.ResetHooks();
+
+            var first = Ref(0);
+            first.Current = 42;
+
+            instance.HookIndex = 0;
+            var second = Ref(999);
+            Assert.Same(first, second);
+            Assert.Equal(42, second.Current);
+            Assert.Equal(42, second.Value);
+
+            ComponentContext.CurrentInstance = null;
+        }
+
+        [Fact]
+        public void Ref_StandaloneCreatesMutableCell()
+        {
+            var r = Ref(5);
+            Assert.Equal(5, r.Current);
+            r.Current = 10;
+            Assert.Equal(10, r.Current);
+        }
+
+        [Fact]
+        public void Id_IsStableAcrossRerender()
+        {
+            var instance = new Instance();
+            ComponentContext.CurrentInstance = instance;
+            instance.ResetHooks();
+
+            var first = Id();
+            instance.HookIndex = 0;
+            var second = Id();
+            Assert.Equal(first, second);
+
+            ComponentContext.CurrentInstance = null;
+        }
+
+        [Fact]
+        public void DeferredValue_ReturnsInput()
+        {
+            Assert.Equal(123, DeferredValue(123));
+        }
+
+        [Fact]
+        public void Transition_StartTransitionRunsAction()
+        {
+            int runs = 0;
+            var (_, start) = Transition();
+            start(() => runs++);
             Assert.Equal(1, runs);
         }
     }

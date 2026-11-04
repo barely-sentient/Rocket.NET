@@ -414,22 +414,56 @@ namespace Rocket.Core
             return new Node<object>(type, props, children);
         }
 
-        public static (T Value, Action<T> SetValue) UseState<T>(T initial) => Hooks.UseState<T>(initial);
-
         public static (T Value, Action<T> SetValue) State<T>(T initial) => Hooks.State<T>(initial);
-
-        public static void UseEffect(Action effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
-
-        public static void UseEffect(Func<Action> effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
 
         public static void SideEffect(Action effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
 
         public static void SideEffect(Func<Action> effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
 
+        public static void Effect(Action effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
+
+        public static void Effect(Func<Action> effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
+
+        public static void LayoutEffect(Action effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
+
+        public static void LayoutEffect(Func<Action> effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
+
+        public static void InsertionEffect(Action effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
+
+        public static void InsertionEffect(Func<Action> effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
+
+        public static (TState State, Action<TAction> Dispatch) Reducer<TState, TAction>(Func<TState, TAction, TState> reducer, TState initial) => Hooks.Reducer(reducer, initial);
+
+        public static (TState State, Action<TAction> Dispatch) Reducer<TState, TAction, TArg>(Func<TState, TAction, TState> reducer, TArg initialArg, Func<TArg, TState> init) => Hooks.Reducer(reducer, initialArg, init);
+
+        public static T Memo<T>(Func<T> factory, object[] dependencies = null) => Hooks.Memo(factory, dependencies);
+
+        public static Action Callback(Action callback, object[] dependencies = null) => Hooks.Callback(callback, dependencies);
+
+        public static Func<TResult> Callback<TResult>(Func<TResult> callback, object[] dependencies = null) => Hooks.Callback(callback, dependencies);
+
+        public static Action<T> Callback<T>(Action<T> callback, object[] dependencies = null) => Hooks.Callback(callback, dependencies);
+
+        public static Func<T, TResult> Callback<T, TResult>(Func<T, TResult> callback, object[] dependencies = null) => Hooks.Callback<T, TResult>(callback, dependencies);
+
+        public static Ref<T> Ref<T>() => Hooks.Ref<T>();
+
+        public static Ref<T> Ref<T>(T initial) => Hooks.Ref(initial);
+
         public static Context<T> CreateContext<T>(T defaultValue) => Hooks.CreateContext<T>(defaultValue);
 
-        public static T UseContext<T>(Context<T> context) => Hooks.UseContext<T>(context);
-
         public static T Context<T>(Context<T> context) => Hooks.Context<T>(context);
+
+        public static string Id() => Hooks.Id();
+
+        public static T DeferredValue<T>(T value) => Hooks.DeferredValue(value);
+
+        public static void DebugValue<T>(T value) => Hooks.DebugValue(value);
+
+        public static (bool IsPending, Action<Action> StartTransition) Transition() => Hooks.Transition();
+
+        public static T SyncExternalStore<T>(Func<Action, Action> subscribe, Func<T> getSnapshot, Func<T> getServerSnapshot = null) => Hooks.SyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+        public static TDelegate Callback<TDelegate>(TDelegate callback, object[] dependencies = null) where TDelegate : Delegate => Hooks.Callback(callback, dependencies);
     }
 }
