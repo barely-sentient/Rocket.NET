@@ -7,7 +7,7 @@ namespace Rocket.Core
     /// <summary>
     /// A collection of CSS rules representing a stylesheet.
     /// </summary>
-    public class Stylesheet
+    public partial class Stylesheet
     {
         public string Name { get; set; }
         public List<CssRule> Rules { get; set; } = new List<CssRule>();

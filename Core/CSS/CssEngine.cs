@@ -10,7 +10,7 @@ namespace Rocket.Core
     /// Simple CSS engine. Given a viewport, filters applicable rules and
     /// generates CSS for that point in time.
     /// </summary>
-    public class CssEngine
+    public partial class CssEngine
     {
         public List<Stylesheet> Stylesheets { get; set; } = new List<Stylesheet>();
         public int ViewportWidth { get; set; }
@@ -326,39 +326,7 @@ namespace Rocket.Core
 
         public string ComputeStyle(Rocket.Core.DOM.Node node, int width, int height, Orientation orientation)
         {
-            if (node == null) return string.Empty;
-            var sb = new StringBuilder();
-            string tag = null;
-            try { tag = node.Type != null ? node.Type.Name : null; } catch { }
-            var props = node.UntypedProps;
-            string id = null, className = null;
-            if (props != null)
-            {
-                var t = props.GetType();
-                var idField = t.GetField("Id") ?? t.GetField("id");
-                var idProp = t.GetProperty("Id") ?? t.GetProperty("id");
-                id = idField?.GetValue(props) as string ?? idProp?.GetValue(props) as string;
-                var classField = t.GetField("ClassName") ?? t.GetField("className");
-                var classProp = t.GetProperty("ClassName") ?? t.GetProperty("className");
-                className = classField?.GetValue(props) as string ?? classProp?.GetValue(props) as string;
-            }
-
-            foreach (var sheet in Stylesheets)
-            {
-                foreach (var rule in sheet.Rules)
-                {
-                    if (!MatchesMedia(rule.Media, width, height, orientation)) continue;
-                    if (!SelectorMatches(rule.Selector, tag, id, className)) continue;
-                    foreach (var kv in rule.Declarations)
-                    {
-                        sb.Append(kv.Key);
-                        sb.Append(": ");
-                        sb.Append(kv.Value);
-                        sb.Append("; ");
-                    }
-                }
-            }
-            return sb.ToString().Trim();
+            return ComputeStyle(node, width, height, orientation, CurrentTime);
         }
 
         public string ComputeStyle(Rocket.Core.DOM.Node node)
@@ -467,23 +435,24 @@ namespace Rocket.Core
             ApplyComputedStyles(root, ViewportWidth, ViewportHeight, Orientation);
         }
 
-        private static bool SelectorMatches(string selector, string tag, string id, string className)
+        private static bool SelectorMatches(string selector, string tag, string id, string className, Rocket.Core.DOM.Node node = null, CssEngine engine = null)
         {
             if (string.IsNullOrWhiteSpace(selector)) return false;
             selector = selector.Trim();
             foreach (var s in selector.Split(','))
             {
-                if (SingleSelectorMatches(s.Trim(), tag, id, className)) return true;
+                if (SingleSelectorMatches(s.Trim(), tag, id, className, node, engine)) return true;
             }
             return false;
         }
 
-        private static bool SingleSelectorMatches(string selector, string tag, string id, string className)
+        private static bool SingleSelectorMatches(string selector, string tag, string id, string className, Rocket.Core.DOM.Node node = null, CssEngine engine = null)
         {
             var parts = selector.Split(new[] { ' ', '\t', '\n' }, StringSplitOptions.RemoveEmptyEntries);
             var last = parts.Length > 0 ? parts[parts.Length - 1] : selector;
 
             string t = null, i = null, c = null;
+            var pseudos = new List<string>();
             int idx = 0;
             var sb = new StringBuilder();
             while (idx < last.Length && (char.IsLetterOrDigit(last[idx]) || last[idx] == '-'))
@@ -509,6 +478,15 @@ namespace Rocket.Core
                         s2.Append(last[idx++]);
                     c = s2.ToString();
                 }
+                else if (last[idx] == ':')
+                {
+                    idx++;
+                    var s2 = new StringBuilder();
+                    s2.Append(':');
+                    while (idx < last.Length && (char.IsLetterOrDigit(last[idx]) || last[idx] == '-' || last[idx] == '(' || last[idx] == ')'))
+                        s2.Append(last[idx++]);
+                    pseudos.Add(s2.ToString());
+                }
                 else
                 {
                     idx++;
@@ -530,6 +508,16 @@ namespace Rocket.Core
                              string.Equals(t, tag.Replace("HTML", "").Replace("Element", ""), StringComparison.OrdinalIgnoreCase) ||
                              tag.ToLowerInvariant().Contains(t.ToLowerInvariant());
                 if (!match) return false;
+            }
+
+            // Pseudo-class matching.
+            foreach (var ps in pseudos)
+            {
+                bool ok;
+                if (engine != null) ok = engine.MatchesPseudo(node, ps);
+                else if (node != null) ok = node.MatchesPseudo(ps);
+                else ok = false;
+                if (!ok) return false;
             }
             return true;
         }

@@ -7,7 +7,7 @@ namespace Rocket.Core
     /// <summary>
     /// A single CSS declaration block rule.
     /// </summary>
-    public class CssRule
+    public partial class CssRule
     {
         public string Selector { get; set; }
         public Dictionary<string, string> Declarations { get; set; } = new Dictionary<string, string>();

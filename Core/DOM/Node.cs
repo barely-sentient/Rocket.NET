@@ -46,6 +46,52 @@ namespace Rocket.Core.DOM
         public string Style { get; set; }
 
         /// <summary>
+        /// Interaction state used by the CSS engine for pseudo-class matching.
+        /// These flags mirror the CSS pseudo-classes :hover, :focus, :active, etc.
+        /// </summary>
+        public bool Hovered { get; set; }
+        public bool Focused { get; set; }
+        public bool Active { get; set; }
+        public bool Visited { get; set; }
+        public bool Checked { get; set; }
+        public bool Disabled { get; set; }
+        public bool Enabled { get; set; } = true;
+
+        // Alias properties for pseudo-state.
+        public bool IsHovered { get => Hovered; set => Hovered = value; }
+        public bool IsFocused { get => Focused; set => Focused = value; }
+        public bool IsActive { get => Active; set => Active = value; }
+        public bool IsVisited { get => Visited; set => Visited = value; }
+        public bool IsChecked { get => Checked; set => Checked = value; }
+        public bool IsDisabled { get => Disabled; set => Disabled = value; }
+
+        /// <summary>
+        /// Optional explicit pseudo-state string (e.g. "hover", "focus").
+        /// </summary>
+        public string PseudoState { get; set; }
+
+        /// <summary>
+        /// Returns true when the given pseudo-class (without leading colon) matches.
+        /// </summary>
+        public virtual bool MatchesPseudo(string pseudo)
+        {
+            if (string.IsNullOrWhiteSpace(pseudo)) return true;
+            pseudo = pseudo.Trim().TrimStart(':').ToLowerInvariant();
+            switch (pseudo)
+            {
+                case "hover": return Hovered;
+                case "focus": return Focused;
+                case "active": return Active;
+                case "visited": return Visited;
+                case "checked": return Checked;
+                case "disabled": return Disabled;
+                case "enabled": return !Disabled && Enabled;
+                default:
+                    if (string.Equals(pseudo, PseudoState, StringComparison.OrdinalIgnoreCase)) return true;
+                    return false;
+            }
+        }
+        /// <summary>
         /// Hacky, but it works.
         /// </summary>
         public virtual object UntypedProps => null;
