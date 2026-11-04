@@ -15,8 +15,19 @@ namespace Rocket.Core
     {
         private IComponentRenderer _renderer;
 
-        public List<Rocket.Core.Stylesheet> Stylesheets { get; } = new List<Rocket.Core.Stylesheet>();
-        public Rocket.Core.CssEngine CssEngine { get; set; } = new Rocket.Core.CssEngine();
+        public List<Rocket.Core.Stylesheet> Stylesheets { get; } = new List<Stylesheet>();
+        public Node LastNodeToDraw { get; private set; }
+
+        /// <summary>Mounts (or re-mounts) the root node and returns the resolved node to draw, without drawing.</summary>
+        public Node MountRoot(Node rootNode)
+        {
+            var instance = MountOrUpdate(rootNode);
+            var cur = instance;
+            while (cur != null && cur.Child != null && cur.Child.VNode != null) cur = cur.Child;
+            LastNodeToDraw = cur != null ? cur.VNode : null;
+            return LastNodeToDraw;
+        }
+        public CssEngine CssEngine { get; set; } = new CssEngine();
 
         public VirtualDomExecutor(IComponentRenderer renderer)
         {
@@ -47,7 +58,12 @@ namespace Rocket.Core
 
             var instance = MountOrUpdate(rootNode);
 
-            var nodeToDraw = instance.Child != null ? instance.Child.VNode : instance.VNode;
+            Console.WriteLine($"[VDE Render] instance.Child={(instance.Child==null?"null":instance.Child.VNode==null?"nullVNode":instance.Child.VNode.Type.Name)} instance.VNode={instance.VNode.Type.Name}");
+            // Unwrap nested composite components to their rendered host node.
+            var cur = instance;
+            while (cur.Child != null && cur.Child.VNode != null) cur = cur.Child;
+            var nodeToDraw = cur.VNode;
+            LastNodeToDraw = nodeToDraw;
 
             // Attach computed styles from the CSS engine for this viewport.
             if (CssEngine != null)
@@ -122,6 +138,7 @@ namespace Rocket.Core
                 ResetComponentHooks(component);
                 Node renderedNode = RenderComponent(component);
                 ComponentContext.CurrentInstance = null;
+                Console.WriteLine($"[VDE] composite {type.Name} rendered={(renderedNode==null?"null":renderedNode.Type.Name)} children={(node.Children==null?0:node.Children.Length)}");
 
                 bool isProvider = component is IContextProvider;
                 if (isProvider) ((IContextProvider)component).PushContext();
@@ -148,13 +165,24 @@ namespace Rocket.Core
             };
 
             Node[] children = node.Children ?? Array.Empty<Node>();
+            var resolvedChildren = new List<Node>();
             foreach (Node child in children)
             {
                 var mounted = Mount(child);
-                if (mounted != null && mounted.VNode != null)
-                    mounted.VNode.Parent = node;
+                if (mounted == null) continue;
                 host.Children.Add(mounted);
+                // Splice composite components' rendered output into the host tree
+                // so the renderer draws the resolved nodes instead of component nodes.
+                var curInst = mounted;
+                while (curInst.Child != null && curInst.Child.VNode != null) curInst = curInst.Child;
+                Node drawChild = curInst.VNode;
+                if (drawChild != null)
+                {
+                    drawChild.Parent = node;
+                    resolvedChildren.Add(drawChild);
+                }
             }
+            node.Children = resolvedChildren.ToArray();
 
             return host;
         }
