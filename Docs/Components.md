@@ -16,7 +16,16 @@ public class MyComponent : Component<MyProps>
 
 ## Primitive (HTML) components
 
-Use `UI.H` with a tag name:
+Every supported HTML element has a strongly-typed props class (`HTML…ElementProps`)
+and a shorthand method on `UI` (also available via `using static Rocket.Core.UI;`).
+The shorthand takes the props object and any optional children:
+
+```csharp
+var button = Button(new HTMLButtonElementProps { TextContent = "Save" });
+var div = Div(new HTMLDivElementProps(), child1, child2);
+```
+
+You can still use `UI.H` with a tag name when you prefer:
 
 ```csharp
 var button = H("button", new HTMLButtonElementProps { TextContent = "Save" });
@@ -24,6 +33,63 @@ var div = H("div", new HTMLDivElementProps(), child1, child2);
 ```
 
 Or use the strongly typed HTML element classes directly via `C<T>`.
+
+### Shorthand reference
+
+| Method | Tag | Props type |
+|---|---|---|
+| `Anchor` | `a` | `HTMLAnchorElementProps` |
+| `Article` | `article` | `HTMLArticleElementProps` |
+| `Aside` | `aside` | `HTMLAsideElementProps` |
+| `Audio` | `audio` | `HTMLAudioElementProps` |
+| `BlockQuote` | `blockquote` | `HTMLBlockquoteElementProps` |
+| `Bold` | `b` | `HTMLBoldElementProps` |
+| `Br` | `br` | `HTMLBrElementProps` |
+| `Button` | `button` | `HTMLButtonElementProps` |
+| `Canvas` | `canvas` | `HTMLCanvasElementProps` |
+| `Code` | `code` | `HTMLCodeElementProps` |
+| `Del` | `del` | `HTMLDelElementProps` |
+| `Details` | `details` | `HTMLDetailsElementProps` |
+| `Div` | `div` | `HTMLDivElementProps` |
+| `Em` | `em` | `HTMLEmElementProps` |
+| `Fieldset` | `fieldset` | `HTMLFieldsetElementProps` |
+| `Footer` | `footer` | `HTMLFooterElementProps` |
+| `Form` | `form` | `HTMLFormElementProps` |
+| `Header` | `header` | `HTMLHeaderElementProps` |
+| `Heading` / `H1`..`H6` | `h1`..`h6` | `HTMLHeadingElementProps` |
+| `Hr` | `hr` | `HTMLHrElementProps` |
+| `Iframe` | `iframe` | `HTMLIframeElementProps` |
+| `Img` | `img` | `HTMLImageElementProps` |
+| `Input` | `input` | `HTMLInputElementProps` |
+| `Ins` | `ins` | `HTMLInsElementProps` |
+| `Italic` | `i` | `HTMLItalicElementProps` |
+| `Label` | `label` | `HTMLLabelElementProps` |
+| `Legend` | `legend` | `HTMLLegendElementProps` |
+| `Li` | `li` | `HTMLListItemElementProps` |
+| `Main` | `main` | `HTMLMainElementProps` |
+| `Mark` | `mark` | `HTMLMarkElementProps` |
+| `Nav` | `nav` | `HTMLNavElementProps` |
+| `Ol` | `ol` | `HTMLOListElementProps` |
+| `Option` | `option` | `HTMLOptionElementProps` |
+| `Paragraph` | `p` | `HTMLParagraphElementProps` |
+| `Pre` | `pre` | `HTMLPreElementProps` |
+| `Progress` | `progress` | `HTMLProgressElementProps` |
+| `Section` | `section` | `HTMLSectionElementProps` |
+| `Select` | `select` | `HTMLSelectElementProps` |
+| `Small` | `small` | `HTMLSmallElementProps` |
+| `Span` | `span` | `HTMLSpanElementProps` |
+| `Strong` | `strong` | `HTMLStrongElementProps` |
+| `Sub` | `sub` | `HTMLSubElementProps` |
+| `Summary` | `summary` | `HTMLSummaryElementProps` |
+| `Sup` | `sup` | `HTMLSupElementProps` |
+| `Table` | `table` | `HTMLTableElementProps` |
+| `Td` | `td` | `HTMLTableCellElementProps` |
+| `Th` | `th` | `HTMLTableHeaderCellElementProps` |
+| `Time` | `time` | `HTMLTimeElementProps` |
+| `Tr` | `tr` | `HTMLTableRowElementProps` |
+| `Ul` | `ul` | `HTMLUListElementProps` |
+| `Underline` | `u` | `HTMLUnderlineElementProps` |
+| `Video` | `video` | `HTMLVideoElementProps` |
 
 ## Props
 
@@ -134,7 +200,7 @@ public class ThemeProvider : Component<ThemeProviderProps>, IContextProvider
         if (Props.Children.Length == 1)
             return Props.Children[0];
 
-        return H("div", new HTMLDivElementProps(), Props.Children);
+        return Div(new HTMLDivElementProps(), Props.Children);
     }
 }
 ```
