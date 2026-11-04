@@ -4,5 +4,7 @@ namespace Rocket.Core.Components
     {}
 
     public class HTMLHeaderElementProps : IntrinsicAttributes
-    {}
+    {
+        public string TextContent { get; set; }
+    }
 }

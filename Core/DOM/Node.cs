@@ -1,5 +1,6 @@
 ﻿
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 using System.Globalization;
@@ -23,7 +24,27 @@ namespace Rocket.Core.DOM
     /// </remarks>
     public class Node
     {
-        
+        /// <summary>
+        /// Computed CSS style string for this node at a given viewport.
+        /// Passed through to the renderer to apply.
+        /// </summary>
+        public string ComputedStyle { get; set; }
+
+        /// <summary>
+        /// Computed CSS style declarations for this node.
+        /// </summary>
+        public Dictionary<string, string> ComputedStyles { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>
+        /// Alias for <see cref="ComputedStyle"/>.
+        /// </summary>
+        public string ComputedCss { get => ComputedStyle; set => ComputedStyle = value; }
+
+        /// <summary>
+        /// Alias for <see cref="ComputedStyle"/>.
+        /// </summary>
+        public string Style { get; set; }
+
         /// <summary>
         /// Hacky, but it works.
         /// </summary>

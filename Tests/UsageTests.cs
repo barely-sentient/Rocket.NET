@@ -4,11 +4,11 @@ using Xunit.Abstractions;
 
 namespace Tests;
 
-public class UnitTest1
+public class UsageTests
 {
     private readonly ITestOutputHelper _testOutputHelper;
 
-    public UnitTest1(ITestOutputHelper testOutputHelper)
+    public UsageTests(ITestOutputHelper testOutputHelper)
     {
         _testOutputHelper = testOutputHelper;
     }

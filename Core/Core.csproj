@@ -5,4 +5,8 @@
         <RootNamespace>Rocket.Core</RootNamespace>
     </PropertyGroup>
 
+    <ItemGroup>
+      <Folder Include="CSS\" />
+    </ItemGroup>
+
 </Project>

@@ -14,10 +14,21 @@ namespace Rocket.Core
     public class VirtualDomExecutor
     {
         private IComponentRenderer _renderer;
-        
+
+        public List<Rocket.Core.Stylesheet> Stylesheets { get; } = new List<Rocket.Core.Stylesheet>();
+        public Rocket.Core.CssEngine CssEngine { get; set; } = new Rocket.Core.CssEngine();
+
         public VirtualDomExecutor(IComponentRenderer renderer)
         {
-            _renderer = renderer;    
+            _renderer = renderer;
+            CssEngine.Stylesheets = Stylesheets;
+        }
+
+        public VirtualDomExecutor(IComponentRenderer renderer, Rocket.Core.CssEngine cssEngine)
+        {
+            _renderer = renderer;
+            CssEngine = cssEngine ?? new Rocket.Core.CssEngine();
+            CssEngine.Stylesheets = Stylesheets;
         }
         
         /// <summary>
@@ -27,12 +38,31 @@ namespace Rocket.Core
         /// <param name="rootNode">The root node of the virtual DOM tree to render.</param>
         public void Render<TProps>(Node<TProps> rootNode) where TProps : new()
         {
+            Render(rootNode, 0, 0, Rocket.Core.Orientation.Portrait);
+        }
+
+        public void Render<TProps>(Node<TProps> rootNode, int viewportWidth, int viewportHeight, Rocket.Core.Orientation orientation) where TProps : new()
+        {
             if (rootNode == null) return;
 
-            // Perform lifecycle: mount or update existing instance
             var instance = MountOrUpdate(rootNode);
 
-            _renderer.Draw((Node<TProps>) (instance.Child != null ? instance.Child.VNode : instance.VNode));
+            var nodeToDraw = (Node<TProps>)(instance.Child != null ? instance.Child.VNode : instance.VNode);
+
+            // Attach computed styles from the CSS engine for this viewport.
+            if (CssEngine != null)
+            {
+                CssEngine.Stylesheets = Stylesheets;
+                CssEngine.Apply(nodeToDraw, viewportWidth, viewportHeight, orientation);
+            }
+
+            _renderer.Draw(nodeToDraw);
+        }
+
+        public void Render<TProps>(Node<TProps> rootNode, Rocket.Core.Viewport viewport) where TProps : new()
+        {
+            if (viewport == null) Render(rootNode);
+            else Render(rootNode, viewport.Width, viewport.Height, viewport.Orientation);
         }
 
         /// <summary>
@@ -78,7 +108,12 @@ namespace Rocket.Core
                 Node renderedNode = RenderComponent(component);
                 ComponentContext.CurrentInstance = null;
 
+                bool isProvider = component is IContextProvider;
+                if (isProvider) ((IContextProvider)component).PushContext();
+
                 instance.Child = Mount(renderedNode);
+
+                if (isProvider) ((IContextProvider)component).PopContext();
                 // Add rendered children
                 if (instance.Child != null)
                     instance.Children.Add(instance.Child);

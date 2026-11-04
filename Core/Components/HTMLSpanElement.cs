@@ -5,6 +5,6 @@ namespace Rocket.Core.Components
 
     public class HTMLSpanElementProps : IntrinsicAttributes
     {
-        public string TextContent;
+        public string TextContent { get; set; }
     }
 }

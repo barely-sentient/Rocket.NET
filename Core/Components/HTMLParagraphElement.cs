@@ -1,4 +1,4 @@
-﻿namespace Rocket.Core.Components
+namespace Rocket.Core.Components
 {
     public class HTMLParagraphElement
     {}

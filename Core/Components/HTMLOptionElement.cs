@@ -5,9 +5,10 @@ namespace Rocket.Core.Components
 
     public class HTMLOptionElementProps : IntrinsicAttributes
     {
-        public string Value;
-        public bool Selected;
-        public bool Disabled;
-        public string TextContent;
+        public string Value { get; set; }
+        public bool Selected { get; set; }
+        public bool Disabled { get; set; }
+        public string Label { get; set; }
+        public string TextContent { get; set; }
     }
 }

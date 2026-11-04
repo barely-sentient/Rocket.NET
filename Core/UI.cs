@@ -149,6 +149,21 @@ namespace Rocket.Core
         private static Dictionary<string, Type> _primitives = new Dictionary<string, Type>();
         
         public static Dictionary<string, Type> Primitives => _primitives;
+
+        /// <summary>
+        /// Stylesheets specified by the player/developer.
+        /// </summary>
+        public static List<Rocket.Core.Stylesheet> Stylesheets { get; } = new List<Rocket.Core.Stylesheet>();
+
+        /// <summary>
+        /// Simple CSS engine instance for this UI.
+        /// </summary>
+        public static Rocket.Core.CssEngine CssEngine { get; set; } = new Rocket.Core.CssEngine();
+
+        /// <summary>
+        /// Alias for <see cref="Stylesheets"/>.
+        /// </summary>
+        public static List<Rocket.Core.Stylesheet> StyleSheets => Stylesheets;
         
         /// <summary>
         /// Sets up the primitive dictionary
@@ -213,6 +228,8 @@ namespace Rocket.Core
             RegisterPrimitive("progress", typeof(HTMLProgressElement));
             RegisterPrimitive("fieldset", typeof(HTMLFieldsetElement));
             RegisterPrimitive("legend", typeof(HTMLLegendElement));
+
+            CssEngine.Stylesheets = Stylesheets;
         }
 
         private static void RegisterPrimitive(string tagName, Type type)
@@ -396,5 +413,23 @@ namespace Rocket.Core
             
             return new Node<object>(type, props, children);
         }
+
+        public static (T Value, Action<T> SetValue) UseState<T>(T initial) => Hooks.UseState<T>(initial);
+
+        public static (T Value, Action<T> SetValue) State<T>(T initial) => Hooks.State<T>(initial);
+
+        public static void UseEffect(Action effect, object[] dependencies = null) => Hooks.UseEffect(effect, dependencies);
+
+        public static void UseEffect(Func<Action> effect, object[] dependencies = null) => Hooks.UseEffect(effect, dependencies);
+
+        public static void SideEffect(Action effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
+
+        public static void SideEffect(Func<Action> effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
+
+        public static Context<T> CreateContext<T>(T defaultValue) => Hooks.CreateContext<T>(defaultValue);
+
+        public static T UseContext<T>(Context<T> context) => Hooks.UseContext<T>(context);
+
+        public static T Context<T>(Context<T> context) => Hooks.Context<T>(context);
     }
 }

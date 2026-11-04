@@ -4,5 +4,7 @@ namespace Rocket.Core.Components
     {}
 
     public class HTMLSectionElementProps : IntrinsicAttributes
-    {}
+    {
+        public string TextContent { get; set; }
+    }
 }

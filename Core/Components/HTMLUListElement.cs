@@ -4,5 +4,6 @@ namespace Rocket.Core.Components
     {}
 
     public class HTMLUListElementProps : IntrinsicAttributes
-    {}
+    {
+    }
 }

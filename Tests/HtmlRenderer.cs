@@ -44,6 +44,13 @@ public class HtmlRenderer : IComponentRenderer
         builder.Append(indent).Append('<').Append(tag);
         AppendProps(node.UntypedProps, "TextContent");
 
+        if (!string.IsNullOrEmpty(node.ComputedStyle))
+        {
+            builder.Append(" style=\"")
+                   .Append(WebUtility.HtmlEncode(node.ComputedStyle))
+                   .Append('"');
+        }
+
         bool hasChildren = node.Children.Length > 0 || !string.IsNullOrEmpty(textContent);
         if (!hasChildren)
         {
