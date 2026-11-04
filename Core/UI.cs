@@ -141,7 +141,7 @@ namespace Rocket.Core
     /// making it straightforward to organise larger interfaces into
     /// reusable sections and independently maintained components.
     /// </example>
-    public static partial class UI
+    public static class UI
     {
         /// <summary>
         /// Holds all the supported HTML elements

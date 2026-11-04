@@ -1,6 +1,3 @@
-using Rocket.Core.Components;
-using Rocket.Core.DOM;
-
 namespace Rocket.Core.Components
 {
     public class HTMLInputElement
@@ -31,23 +28,5 @@ namespace Rocket.Core.Components
         public string Alt { get; set; }
         public int Width { get; set; }
         public int Height { get; set; }
-    }
-}
-
-namespace Rocket.Core
-{
-    public static partial class UI
-    {
-        /// <summary>
-        /// Shorthand method to render a Input element
-        /// </summary>
-        /// <param name="props"></param>
-        /// <param name="children"></param>
-        /// <returns></returns>
-        public static Node<HTMLInputElementProps> Input(HTMLInputElementProps props, params Node[] children)
-        {
-            return (Node<HTMLInputElementProps>) H("input", props, children);
-        }
-
     }
 }
