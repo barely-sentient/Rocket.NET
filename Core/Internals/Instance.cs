@@ -4,6 +4,9 @@ using Rocket.Core.DOM;
 
 namespace Rocket.Core
 {
+    /// <summary>
+    /// Runtime instance of a component or host node in the virtual DOM tree.
+    /// </summary>
     public class Instance
     {
         public Node VNode;
@@ -15,7 +18,6 @@ namespace Rocket.Core
         public int HookIndex;
         public Instance Parent;
         public bool Dirty;
-        public int TabIndex;
 
         public void ResetHooks()
         {

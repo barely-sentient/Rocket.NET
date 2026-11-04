@@ -3,6 +3,9 @@ using Rocket.Core;
 
 namespace Rocket.Core.Components
 {
+    /// <summary>
+    /// Common attributes shared by all intrinsic HTML elements.
+    /// </summary>
     public class IntrinsicAttributes
     {
         public string Id { get; set; }

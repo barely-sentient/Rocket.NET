@@ -36,18 +36,18 @@ namespace Rocket.Core
         /// the tree is reconciled against the previous state.
         /// </summary>
         /// <param name="rootNode">The root node of the virtual DOM tree to render.</param>
-        public void Render<TProps>(Node<TProps> rootNode) where TProps : new()
+        public void Render(Node rootNode)
         {
             Render(rootNode, 0, 0, Rocket.Core.Orientation.Portrait);
         }
 
-        public void Render<TProps>(Node<TProps> rootNode, int viewportWidth, int viewportHeight, Rocket.Core.Orientation orientation) where TProps : new()
+        public void Render(Node rootNode, int viewportWidth, int viewportHeight, Rocket.Core.Orientation orientation)
         {
             if (rootNode == null) return;
 
             var instance = MountOrUpdate(rootNode);
 
-            var nodeToDraw = (Node<TProps>)(instance.Child != null ? instance.Child.VNode : instance.VNode);
+            var nodeToDraw = instance.Child != null ? instance.Child.VNode : instance.VNode;
 
             // Attach computed styles from the CSS engine for this viewport.
             if (CssEngine != null)
@@ -59,10 +59,25 @@ namespace Rocket.Core
             _renderer.Draw(nodeToDraw);
         }
 
-        public void Render<TProps>(Node<TProps> rootNode, Rocket.Core.Viewport viewport) where TProps : new()
+        public void Render<TProps>(Node<TProps> rootNode) where TProps : new()
+        {
+            Render((Node)rootNode);
+        }
+
+        public void Render<TProps>(Node<TProps> rootNode, int viewportWidth, int viewportHeight, Rocket.Core.Orientation orientation) where TProps : new()
+        {
+            Render((Node)rootNode, viewportWidth, viewportHeight, orientation);
+        }
+
+        public void Render(Node rootNode, Rocket.Core.Viewport viewport)
         {
             if (viewport == null) Render(rootNode);
             else Render(rootNode, viewport.Width, viewport.Height, viewport.Orientation);
+        }
+
+        public void Render<TProps>(Node<TProps> rootNode, Rocket.Core.Viewport viewport) where TProps : new()
+        {
+            Render((Node)rootNode, viewport);
         }
 
         /// <summary>

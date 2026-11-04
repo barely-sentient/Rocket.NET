@@ -4,6 +4,9 @@ using Rocket.Core.DOM;
 
 namespace Rocket.Core
 {
+    /// <summary>
+    /// Implemented by components that provide a context value to their subtree.
+    /// </summary>
     public interface IContextProvider
     {
         void PushContext();

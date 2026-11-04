@@ -2,6 +2,10 @@
 
 namespace Rocket.Core
 {
+    /// <summary>
+    /// Base class for composite components in the virtual DOM.
+    /// </summary>
+    /// <typeparam name="TProps">The component's properties type.</typeparam>
     public abstract class Component<TProps> where TProps : new()
     {
         public abstract Node Render();
