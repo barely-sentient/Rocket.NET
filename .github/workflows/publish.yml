@@ -60,8 +60,13 @@ jobs:
             -o ./artifacts \
             -p:Version=${{ steps.version.outputs.value }}
 
-      - name: Push to NuGet
-        run: |
-          dotnet nuget push ./artifacts/*.nupkg \
-            --source https://api.nuget.org/v3/index.json \
-            --skip-duplicate
+        # Get a short-lived NuGet API key
+        - name: NuGet login (OIDC → temp API key)
+          uses: NuGet/login@v1
+          id: login
+          with:
+            user: hudson1998x
+        
+        # Push the package
+        - name: NuGet push
+          run: dotnet nuget push artifacts/my-sdk.nupkg --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json
