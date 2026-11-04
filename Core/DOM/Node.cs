@@ -1,5 +1,6 @@
 ﻿
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
@@ -24,6 +25,15 @@ namespace Rocket.Core.DOM
     /// </remarks>
     public class Node
     {
+        private sealed class MemberRef
+        {
+            public PropertyInfo Property;
+            public FieldInfo Field;
+        }
+
+        private static readonly ConcurrentDictionary<string, MemberRef> _memberRefCache =
+            new ConcurrentDictionary<string, MemberRef>();
+
         /// <summary>
         /// Computed CSS style string for this node at a given viewport.
         /// Passed through to the renderer to apply.
@@ -138,6 +148,16 @@ namespace Rocket.Core.DOM
         /// </summary>
         public Node Parent { get; set; }
 
+        // Style computation cache (internal perf aid).
+        internal int _styleCacheW;
+        internal int _styleCacheH;
+        internal Rocket.Core.Orientation _styleCacheO;
+        internal double _styleCacheTime;
+        internal string _styleCachePseudoKey;
+        internal string _styleCacheResult;
+        internal bool _styleCacheValid;
+        internal int _styleCacheSheetVersion;
+
         /// <summary>
         /// Gets or sets the component type represented by this node.
         /// </summary>
@@ -206,13 +226,27 @@ namespace Rocket.Core.DOM
 
             if (!e.IsPropagationStopped && UntypedProps != null)
             {
-                var t = UntypedProps.GetType();
-                var prop = t.GetProperty(propName);
-                var field = t.GetField(propName);
-                object handler = prop?.GetValue(UntypedProps) ?? field?.GetValue(UntypedProps);
+                var props = UntypedProps;
+                var t = props.GetType();
+                string cacheKey = t.FullName + "|" + propName;
+                var mr = _memberRefCache.GetOrAdd(cacheKey, _ => new MemberRef
+                {
+                    Property = t.GetProperty(propName),
+                    Field = t.GetField(propName)
+                });
+
+                object handler = mr.Property != null ? mr.Property.GetValue(props) : null;
+                if (handler == null && mr.Field != null) handler = mr.Field.GetValue(props);
+
                 if (handler is Delegate del)
                 {
-                    try { del.DynamicInvoke(e); } catch { }
+                    try
+                    {
+                        // Fast path for the common handler signature.
+                        if (del is Action<Rocket.Core.Event> action) action(e);
+                        else del.DynamicInvoke(e);
+                    }
+                    catch { }
                 }
             }
 

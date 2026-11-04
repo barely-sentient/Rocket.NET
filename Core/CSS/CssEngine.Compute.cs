@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
 using Rocket.Core.DOM;
 
@@ -11,6 +13,57 @@ namespace Rocket.Core
     /// </summary>
     public partial class CssEngine
     {
+        private sealed class PropIds
+        {
+            public FieldInfo IdField;
+            public PropertyInfo IdProp;
+            public FieldInfo ClassField;
+            public PropertyInfo ClassProp;
+        }
+
+        private static readonly ConcurrentDictionary<Type, PropIds> _propIdCache = new ConcurrentDictionary<Type, PropIds>();
+
+        private static PropIds GetPropIds(Type t)
+        {
+            return _propIdCache.GetOrAdd(t, type =>
+            {
+                var p = new PropIds();
+                p.IdField = type.GetField("Id") ?? type.GetField("id");
+                p.IdProp = type.GetProperty("Id") ?? type.GetProperty("id");
+                p.ClassField = type.GetField("ClassName") ?? type.GetField("className");
+                p.ClassProp = type.GetProperty("ClassName") ?? type.GetProperty("className");
+                return p;
+            });
+        }
+
+        private readonly ConcurrentDictionary<string, List<CssRule>> _ruleMatchCache =
+            new ConcurrentDictionary<string, List<CssRule>>();
+
+        private List<CssRule> GetMatchingRules(string tag, string id, string className, Node node, int width, int height, Orientation orientation)
+        {
+            string pseudoKey = node == null
+                ? string.Empty
+                : $"{node.Hovered}:{node.Focused}:{node.Active}:{node.Visited}:{node.Checked}:{node.Disabled}:{node.PseudoState}";
+            string key = $"{tag}|{id}|{className}|{width}|{height}|{orientation}|{pseudoKey}|{Stylesheets.Count}|{_stylesheetVersion}";
+
+            return _ruleMatchCache.GetOrAdd(key, _ => BuildMatchingRules(tag, id, className, node, width, height, orientation));
+        }
+
+        private List<CssRule> BuildMatchingRules(string tag, string id, string className, Node node, int width, int height, Orientation orientation)
+        {
+            var list = new List<CssRule>();
+            foreach (var sheet in Stylesheets)
+            {
+                foreach (var rule in sheet.Rules)
+                {
+                    if (!MatchesMedia(rule.Media, width, height, orientation)) continue;
+                    if (!SelectorMatches(rule.Selector, tag, id, className, node, this)) continue;
+                    list.Add(rule);
+                }
+            }
+            return list;
+        }
+
         // -----------------------------------------------------------------
         // Time-aware computation entry points
         // -----------------------------------------------------------------
@@ -26,37 +79,40 @@ namespace Rocket.Core
             string id = null, className = null;
             if (props != null)
             {
-                var t = props.GetType();
-                var idField = t.GetField("Id") ?? t.GetField("id");
-                var idProp = t.GetProperty("Id") ?? t.GetProperty("id");
-                id = idField?.GetValue(props) as string ?? idProp?.GetValue(props) as string;
-                var classField = t.GetField("ClassName") ?? t.GetField("className");
-                var classProp = t.GetProperty("ClassName") ?? t.GetProperty("className");
-                className = classField?.GetValue(props) as string ?? classProp?.GetValue(props) as string;
+                var ids = GetPropIds(props.GetType());
+                id = ids.IdField?.GetValue(props) as string ?? ids.IdProp?.GetValue(props) as string;
+                className = ids.ClassField?.GetValue(props) as string ?? ids.ClassProp?.GetValue(props) as string;
+            }
+
+            string pseudoKey = $"{tag}|{id}|{className}|{node.Hovered}:{node.Focused}:{node.Active}:{node.Visited}:{node.Checked}:{node.Disabled}:{node.PseudoState}";
+            if (node._styleCacheValid &&
+                node._styleCacheW == width &&
+                node._styleCacheH == height &&
+                node._styleCacheO == orientation &&
+                node._styleCacheTime == time &&
+                node._styleCachePseudoKey == pseudoKey &&
+                node._styleCacheSheetVersion == _stylesheetVersion)
+            {
+                return node._styleCacheResult;
             }
 
             // Collect matching declarations into an ordered target dictionary.
             var target = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var transitionSpecs = new List<CssTransition>();
 
-            foreach (var sheet in Stylesheets)
+            var matchingRules = GetMatchingRules(tag, id, className, node, width, height, orientation);
+            foreach (var rule in matchingRules)
             {
-                foreach (var rule in sheet.Rules)
+                foreach (var kv in rule.Declarations)
                 {
-                    if (!MatchesMedia(rule.Media, width, height, orientation)) continue;
-                    if (!SelectorMatches(rule.Selector, tag, id, className, node, this)) continue;
-
-                    foreach (var kv in rule.Declarations)
-                    {
-                        target[kv.Key] = kv.Value; // last wins
-                    }
-                    // transition specs from this rule
-                    var specs = ParseTransitions(rule.Declarations);
-                    if (specs.Count > 0)
-                    {
-                        // Replace or append? Last rule wins for transition property.
-                        transitionSpecs = specs;
-                    }
+                    target[kv.Key] = kv.Value; // last wins
+                }
+                // transition specs from this rule
+                var specs = ParseTransitions(rule.Declarations);
+                if (specs.Count > 0)
+                {
+                    // Replace or append? Last rule wins for transition property.
+                    transitionSpecs = specs;
                 }
             }
 
@@ -69,7 +125,16 @@ namespace Rocket.Core
             if (st == null) 
             {
                 // No state tracking possible; just return target string.
-                return DictToString(target);
+                var r = DictToString(target);
+                node._styleCacheW = width;
+                node._styleCacheH = height;
+                node._styleCacheO = orientation;
+                node._styleCacheTime = time;
+                node._styleCachePseudoKey = pseudoKey;
+                node._styleCacheResult = r;
+                node._styleCacheSheetVersion = _stylesheetVersion;
+                node._styleCacheValid = true;
+                return r;
             }
 
             var oldTarget = st.Target;
@@ -191,7 +256,16 @@ namespace Rocket.Core
                 sb.Append(val);
                 sb.Append("; ");
             }
-            return sb.ToString().Trim();
+            var result = sb.ToString().Trim();
+            node._styleCacheW = width;
+            node._styleCacheH = height;
+            node._styleCacheO = orientation;
+            node._styleCacheTime = time;
+            node._styleCachePseudoKey = pseudoKey;
+            node._styleCacheResult = result;
+            node._styleCacheSheetVersion = _stylesheetVersion;
+            node._styleCacheValid = true;
+            return result;
         }
 
         public string ComputeStyle(Rocket.Core.DOM.Node node, int width, int height, Orientation orientation, TimeSpan time)

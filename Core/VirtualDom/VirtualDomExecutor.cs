@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Reflection;
 using Rocket.Core.DOM;
 
@@ -14,6 +16,37 @@ namespace Rocket.Core
     public class VirtualDomExecutor
     {
         private IComponentRenderer _renderer;
+        private Instance _rootInstance;
+
+        private sealed class ComponentMeta
+        {
+            public bool IsComposite;
+            public Type PropsType;
+            public PropertyInfo PropsProperty;
+            public PropertyInfo ChildrenProperty;
+            public MethodInfo RenderMethod;
+            public MethodInfo ResetHooksMethod;
+        }
+
+        private static readonly ConcurrentDictionary<Type, ComponentMeta> _metaCache =
+            new ConcurrentDictionary<Type, ComponentMeta>();
+
+        private static readonly ConcurrentDictionary<Type, Func<object>> _factoryCache =
+            new ConcurrentDictionary<Type, Func<object>>();
+
+        private static Func<object> GetFactory(Type type)
+        {
+            if (type == null) return null;
+            return _factoryCache.GetOrAdd(type, t =>
+            {
+                var ctor = t.GetConstructor(Type.EmptyTypes);
+                if (ctor == null)
+                    return (Func<object>)(() => Activator.CreateInstance(t));
+                var newExpr = Expression.New(ctor);
+                var conv = Expression.Convert(newExpr, typeof(object));
+                return Expression.Lambda<Func<object>>(conv).Compile();
+            });
+        }
 
         public List<Rocket.Core.Stylesheet> Stylesheets { get; } = new List<Stylesheet>();
         public Node LastNodeToDraw { get; private set; }
@@ -57,8 +90,6 @@ namespace Rocket.Core
             if (rootNode == null) return;
 
             var instance = MountOrUpdate(rootNode);
-
-            Console.WriteLine($"[VDE Render] instance.Child={(instance.Child==null?"null":instance.Child.VNode==null?"nullVNode":instance.Child.VNode.Type.Name)} instance.VNode={instance.VNode.Type.Name}");
             // Unwrap nested composite components to their rendered host node.
             var cur = instance;
             while (cur.Child != null && cur.Child.VNode != null) cur = cur.Child;
@@ -98,15 +129,28 @@ namespace Rocket.Core
 
         /// <summary>
         /// Mounts or updates the instance tree based on the node.
+        /// Reuses the previous instance tree when component types match,
+        /// preserving hook state across re-renders.
         /// </summary>
         private Instance MountOrUpdate(Node node)
         {
             if (node == null) return null;
 
-            // Check if this is a new root (no existing instance) or an update
-            // For simplicity, we always mount from scratch; 
-            // in a full implementation, would reconcile against existing state.
-            return Mount(node);
+            if (_rootInstance == null || !Compatible(_rootInstance, node))
+            {
+                if (_rootInstance != null) Unmount(_rootInstance);
+                _rootInstance = Mount(node);
+                return _rootInstance;
+            }
+
+            UpdateInstance(_rootInstance, node);
+            return _rootInstance;
+        }
+
+        private static bool Compatible(Instance instance, Node node)
+        {
+            if (instance == null || node == null) return false;
+            return instance.ComponentType == node.Type;
         }
 
         /// <summary>
@@ -119,11 +163,12 @@ namespace Rocket.Core
             Type type = node.Type;
 
             // Check if this is a composite component (inherits from Component<TProps>)
-            if (IsComposite(type))
+            var meta = GetMeta(type);
+            if (meta.IsComposite)
             {
-                object component = Activator.CreateInstance(type);
-                SetComponentProps(component, CastProps(type, GetNodeProps(node)));
-                SetComponentChildren(component, node.Children);
+                object component = GetFactory(type)();
+                SetComponentProps(component, meta, CastProps(meta, GetNodeProps(node)));
+                SetComponentChildren(component, meta, node.Children);
 
                 Instance instance = new Instance
                 {
@@ -135,10 +180,10 @@ namespace Rocket.Core
 
                 // Hook state management
                 ComponentContext.CurrentInstance = instance;
-                ResetComponentHooks(component);
-                Node renderedNode = RenderComponent(component);
+                instance.ResetHooks();
+                Node renderedNode = meta.RenderMethod != null ? meta.RenderMethod.Invoke(component, null) as Node : RenderComponent(component);
                 ComponentContext.CurrentInstance = null;
-                Console.WriteLine($"[VDE] composite {type.Name} rendered={(renderedNode==null?"null":renderedNode.Type.Name)} children={(node.Children==null?0:node.Children.Length)}");
+                // (debug logging removed for performance)
 
                 bool isProvider = component is IContextProvider;
                 if (isProvider) ((IContextProvider)component).PushContext();
@@ -187,20 +232,128 @@ namespace Rocket.Core
             return host;
         }
 
+        private void UpdateInstance(Instance instance, Node node)
+        {
+            if (instance == null || node == null) return;
+
+            instance.VNode = node;
+            Type type = node.Type;
+            var meta = GetMeta(type);
+
+            if (meta.IsComposite)
+            {
+                object component = instance.ComponentInstance;
+                SetComponentProps(component, meta, CastProps(meta, GetNodeProps(node)));
+                SetComponentChildren(component, meta, node.Children);
+
+                ComponentContext.CurrentInstance = instance;
+                instance.ResetHooks();
+                Node renderedNode = meta.RenderMethod != null
+                    ? meta.RenderMethod.Invoke(component, null) as Node
+                    : RenderComponent(component);
+                ComponentContext.CurrentInstance = null;
+
+                bool isProvider = component is IContextProvider;
+                if (isProvider) ((IContextProvider)component).PushContext();
+
+                if (instance.Child == null || !Compatible(instance.Child, renderedNode))
+                {
+                    if (instance.Child != null) Unmount(instance.Child);
+                    instance.Child = Mount(renderedNode);
+                }
+                else
+                {
+                    UpdateInstance(instance.Child, renderedNode);
+                }
+
+                if (instance.Child != null && instance.Child.VNode != null)
+                    instance.Child.VNode.Parent = node;
+
+                if (isProvider) ((IContextProvider)component).PopContext();
+
+                instance.Children.Clear();
+                if (instance.Child != null) instance.Children.Add(instance.Child);
+            }
+            else
+            {
+                instance.ComponentType = type;
+
+                Node[] newChildren = node.Children ?? Array.Empty<Node>();
+                var newInstances = new List<Instance>();
+                var resolved = new List<Node>();
+                int oldCount = instance.Children.Count;
+
+                for (int i = 0; i < newChildren.Length; i++)
+                {
+                    var childNode = newChildren[i];
+                    Instance childInst = (i < oldCount) ? instance.Children[i] : null;
+
+                    if (childInst != null && Compatible(childInst, childNode))
+                    {
+                        UpdateInstance(childInst, childNode);
+                    }
+                    else
+                    {
+                        if (childInst != null) Unmount(childInst);
+                        childInst = Mount(childNode);
+                    }
+
+                    var curInst = childInst;
+                    while (curInst != null && curInst.Child != null && curInst.Child.VNode != null)
+                        curInst = curInst.Child;
+                    Node drawChild = curInst != null ? curInst.VNode : null;
+                    if (drawChild != null)
+                    {
+                        drawChild.Parent = node;
+                        resolved.Add(drawChild);
+                    }
+                    newInstances.Add(childInst);
+                }
+
+                for (int i = newChildren.Length; i < oldCount; i++)
+                {
+                    Unmount(instance.Children[i]);
+                }
+
+                instance.Children = newInstances;
+                node.Children = resolved.ToArray();
+            }
+        }
+
+        private static ComponentMeta GetMeta(Type type)
+        {
+            if (type == null) return new ComponentMeta();
+            return _metaCache.GetOrAdd(type, t =>
+            {
+                var meta = new ComponentMeta();
+                Type current = t.BaseType;
+                while (current != null)
+                {
+                    if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(Component<>))
+                    {
+                        meta.IsComposite = true;
+                        meta.PropsType = current.GetGenericArguments()[0];
+                        break;
+                    }
+                    current = current.BaseType;
+                }
+                if (meta.IsComposite)
+                {
+                    meta.PropsProperty = t.GetProperty("Props");
+                    meta.ChildrenProperty = t.GetProperty("Children");
+                    meta.RenderMethod = t.GetMethod("Render", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    meta.ResetHooksMethod = t.GetMethod("ResetHooks", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                }
+                return meta;
+            });
+        }
+
         /// <summary>
         /// Returns true if the component type is composite (inherits from Component<T>).
         /// </summary>
         private static bool IsComposite(Type type)
         {
-            if (type == null) return false;
-            Type current = type.BaseType;
-            while (current != null)
-            {
-                if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(Component<>))
-                    return true;
-                current = current.BaseType;
-            }
-            return false;
+            return GetMeta(type).IsComposite;
         }
 
         /// <summary>
@@ -208,36 +361,46 @@ namespace Rocket.Core
         /// </summary>
         private static object CastProps(Type componentType, object props)
         {
-            Type baseType = componentType.BaseType;
-            while (baseType != null && !(baseType.IsGenericType && baseType.GetGenericTypeDefinition() == typeof(Component<>)))
-                baseType = baseType.BaseType;
+            return CastProps(GetMeta(componentType), props);
+        }
 
-            if (baseType == null) return props;
-
-            Type propsType = baseType.GetGenericArguments()[0];
-            if (props == null) return Activator.CreateInstance(propsType);
+        private static object CastProps(ComponentMeta meta, object props)
+        {
+            Type propsType = meta.PropsType;
+            if (propsType == null) return props;
+            if (props == null) return GetFactory(propsType)();
             if (propsType.IsInstanceOfType(props)) return props;
-            return Activator.CreateInstance(propsType);
+            return GetFactory(propsType)();
         }
 
         /// <summary>
         /// Sets component properties from a props object.
         /// </summary>
-        private static void SetComponentProps(object component, object props)
+        private static void SetComponentProps(object component, ComponentMeta meta, object props)
         {
             if (component == null) return;
-            PropertyInfo property = component.GetType().GetProperty("Props");
+            PropertyInfo property = meta.PropsProperty ?? component.GetType().GetProperty("Props");
             if (property != null && property.CanWrite) property.SetValue(component, props);
+        }
+
+        private static void SetComponentProps(object component, object props)
+        {
+            SetComponentProps(component, GetMeta(component.GetType()), props);
         }
 
         /// <summary>
         /// Sets component children from a Node array.
         /// </summary>
-        private static void SetComponentChildren(object component, Node[] children)
+        private static void SetComponentChildren(object component, ComponentMeta meta, Node[] children)
         {
             if (component == null) return;
-            PropertyInfo property = component.GetType().GetProperty("Children");
+            PropertyInfo property = meta.ChildrenProperty ?? component.GetType().GetProperty("Children");
             if (property != null && property.CanWrite) property.SetValue(component, children);
+        }
+
+        private static void SetComponentChildren(object component, Node[] children)
+        {
+            SetComponentChildren(component, GetMeta(component.GetType()), children);
         }
 
         /// <summary>
@@ -246,7 +409,8 @@ namespace Rocket.Core
         private static void ResetComponentHooks(object component)
         {
             if (component == null) return;
-            MethodInfo method = component.GetType().GetMethod("ResetHooks", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var meta = GetMeta(component.GetType());
+            MethodInfo method = meta.ResetHooksMethod ?? component.GetType().GetMethod("ResetHooks", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (method != null) method.Invoke(component, null);
         }
 
@@ -256,7 +420,8 @@ namespace Rocket.Core
         private static Node RenderComponent(object component)
         {
             if (component == null) return null;
-            MethodInfo method = component.GetType().GetMethod("Render", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var meta = GetMeta(component.GetType());
+            MethodInfo method = meta.RenderMethod ?? component.GetType().GetMethod("Render", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (method == null) return null;
             return method.Invoke(component, null) as Node;
         }
@@ -264,10 +429,13 @@ namespace Rocket.Core
         /// <summary>
         /// Gets props from a node, supporting both base Node and Node{TProps}.
         /// </summary>
+        private static readonly ConcurrentDictionary<Type, PropertyInfo> _nodePropsCache = new ConcurrentDictionary<Type, PropertyInfo>();
+
         private static object GetNodeProps(Node node)
         {
             if (node == null) return null;
-            var propsProperty = node.GetType().GetProperty("Props");
+            var type = node.GetType();
+            var propsProperty = _nodePropsCache.GetOrAdd(type, t => t.GetProperty("Props"));
             return propsProperty?.GetValue(node);
         }
 

@@ -49,9 +49,15 @@ namespace Rocket.Core
             }
         }
 
+        private int _stylesheetVersion;
+
         public void AddStylesheet(Stylesheet sheet)
         {
-            if (sheet != null) Stylesheets.Add(sheet);
+            if (sheet != null)
+            {
+                Stylesheets.Add(sheet);
+                _stylesheetVersion++;
+            }
         }
 
         public void AddStylesheet(string css)

@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Reflection;
 using System.Text;
@@ -13,6 +14,14 @@ public class HtmlRenderer : IComponentRenderer
     private readonly StringBuilder builder = new();
 
     private static Dictionary<Type, string> _typeMap = new();
+
+    private sealed class MemberCache
+    {
+        public PropertyInfo[] Properties = Array.Empty<PropertyInfo>();
+        public FieldInfo[] Fields = Array.Empty<FieldInfo>();
+    }
+
+    private static readonly ConcurrentDictionary<Type, MemberCache> _memberCache = new ConcurrentDictionary<Type, MemberCache>();
 
     static HtmlRenderer()
     {
@@ -77,15 +86,28 @@ public class HtmlRenderer : IComponentRenderer
         if (props == null) return;
 
         var type = props.GetType();
-
-        foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        var cache = _memberCache.GetOrAdd(type, t =>
         {
-            if (!prop.CanRead || prop.GetIndexParameters().Length > 0) continue;
+            var c = new MemberCache();
+            var propsArr = t.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            var list = new List<PropertyInfo>();
+            foreach (var p in propsArr)
+            {
+                if (!p.CanRead || p.GetIndexParameters().Length > 0) continue;
+                list.Add(p);
+            }
+            c.Properties = list.ToArray();
+            c.Fields = t.GetFields(BindingFlags.Public | BindingFlags.Instance);
+            return c;
+        });
+
+        foreach (var prop in cache.Properties)
+        {
             if (prop.Name == skip) continue;
             AppendAttribute(prop.Name, prop.GetValue(props));
         }
 
-        foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+        foreach (var field in cache.Fields)
         {
             if (field.Name == skip) continue;
             AppendAttribute(field.Name, field.GetValue(props));

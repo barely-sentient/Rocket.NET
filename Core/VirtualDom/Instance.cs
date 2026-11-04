@@ -21,6 +21,12 @@ namespace Rocket.Core
 
         public void ResetHooks()
         {
+            // Preserve stored hook state across re-renders; only reset the cursor.
+            HookIndex = 0;
+        }
+
+        public void ClearHooks()
+        {
             Hooks.Clear();
             HookIndex = 0;
         }

@@ -730,13 +730,9 @@ namespace Rocket.Core
         private static string GetStyle(Dictionary<string, string> style, string key)
         {
             if (style == null || string.IsNullOrEmpty(key)) return null;
-            if (style.TryGetValue(key, out var v)) return v;
-            // case-insensitive
-            foreach (var kv in style)
-            {
-                if (string.Equals(kv.Key, key, StringComparison.OrdinalIgnoreCase)) return kv.Value;
-            }
-            return null;
+            // Dictionary uses OrdinalIgnoreCase, so TryGetValue is case-insensitive.
+            style.TryGetValue(key, out var v);
+            return v;
         }
 
         private static string DefaultDisplay(Node node)
