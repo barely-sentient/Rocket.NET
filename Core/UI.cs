@@ -418,9 +418,9 @@ namespace Rocket.Core
 
         public static (T Value, Action<T> SetValue) State<T>(T initial) => Hooks.State<T>(initial);
 
-        public static void UseEffect(Action effect, object[] dependencies = null) => Hooks.UseEffect(effect, dependencies);
+        public static void UseEffect(Action effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
 
-        public static void UseEffect(Func<Action> effect, object[] dependencies = null) => Hooks.UseEffect(effect, dependencies);
+        public static void UseEffect(Func<Action> effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
 
         public static void SideEffect(Action effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
 
