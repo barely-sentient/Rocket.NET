@@ -142,10 +142,10 @@ namespace Tests
         }
 
         [Fact]
-        public void UseEffect_AliasWorks()
+        public void SideEffect_AliasWorks()
         {
             int runs = 0;
-            UseEffect(() => { runs++; }, null);
+            SideEffect(() => { runs++; }, null);
             Assert.Equal(1, runs);
         }
     }

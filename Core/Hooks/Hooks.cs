@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using Rocket.Core.DOM;
 
 namespace Rocket.Core
 {
@@ -37,11 +35,6 @@ namespace Rocket.Core
             }
             return (hook.Value, hook.Setter);
         }
-
-        public static void UseEffect(Action effect, object[] dependencies = null) => SideEffect(effect, dependencies);
-
-        public static void UseEffect(Func<Action> effect, object[] dependencies = null) => SideEffect(effect, dependencies);
-
         public static void SideEffect(Action effect, object[] dependencies = null)
         {
             SideEffect(() => { effect(); return null; }, dependencies);
