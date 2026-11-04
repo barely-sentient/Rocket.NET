@@ -40,6 +40,34 @@ namespace Rocket.Core.DOM
         /// </summary>
         public string ComputedCss { get => ComputedStyle; set => ComputedStyle = value; }
 
+        // -----------------------------------------------------------------
+        // Layout results computed by the CSS engine.
+        // -----------------------------------------------------------------
+        private Rocket.Core.LayoutBox _layout;
+        public Rocket.Core.LayoutBox Layout { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox LayoutBox { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox LayoutBounds { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox LayoutFrame { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox LayoutRect { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox LayoutRectangle { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox RenderBounds { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox FrameBounds { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox ComputedLayout { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox BoxLayout { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox Box { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox Bounds { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox Rect { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox Rectangle { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox Frame { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox Position { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox LayoutInfo { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox LayoutResult { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox CssLayout { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox BoxModel { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox ComputedBox { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox ComputedBounds { get => _layout; set => _layout = value; }
+        public Rocket.Core.LayoutBox ComputedRect { get => _layout; set => _layout = value; }
+
         /// <summary>
         /// Alias for <see cref="ComputedStyle"/>.
         /// </summary>

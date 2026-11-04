@@ -266,6 +266,7 @@ namespace Rocket.Core
         public void ApplyComputedStyles(Rocket.Core.DOM.Node root, int width, int height, Orientation orientation, double time)
         {
             if (root == null) return;
+            _applyDepth++;
             var style = ComputeStyle(root, width, height, orientation, time);
             root.ComputedStyle = style;
             root.ComputedCss = style;
@@ -285,6 +286,13 @@ namespace Rocket.Core
             }
             foreach (var child in root.Children ?? Array.Empty<Rocket.Core.DOM.Node>())
                 ApplyComputedStyles(child, width, height, orientation, time);
+            if (_applyDepth == 1 && !_layoutInProgress)
+            {
+                _layoutInProgress = true;
+                CalculateLayout(root, width, height, orientation, time);
+                _layoutInProgress = false;
+            }
+            _applyDepth--;
         }
 
         public void ApplyComputedStyles(Rocket.Core.DOM.Node root, double time)
@@ -294,12 +302,12 @@ namespace Rocket.Core
 
         public void Apply(Rocket.Core.DOM.Node root, int width, int height, Orientation orientation, double time)
         {
-            ApplyComputedStyles(root, width, height, orientation, time);
+            CalculateLayout(root, width, height, orientation, time);
         }
 
         public void Apply(Rocket.Core.DOM.Node root, double time)
         {
-            ApplyComputedStyles(root, ViewportWidth, ViewportHeight, Orientation, time);
+            CalculateLayout(root, ViewportWidth, ViewportHeight, Orientation, time);
         }
 
         // Time-aware GenerateCss aliases (transitions do not affect raw stylesheet output).

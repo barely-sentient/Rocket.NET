@@ -379,6 +379,7 @@ namespace Rocket.Core
         public void ApplyComputedStyles(Rocket.Core.DOM.Node root, int width, int height, Orientation orientation)
         {
             if (root == null) return;
+            _applyDepth++;
             var style = ComputeStyle(root, width, height, orientation);
             root.ComputedStyle = style;
             root.ComputedCss = style;
@@ -398,6 +399,13 @@ namespace Rocket.Core
             }
             foreach (var child in root.Children ?? Array.Empty<Rocket.Core.DOM.Node>())
                 ApplyComputedStyles(child, width, height, orientation);
+            if (_applyDepth == 1 && !_layoutInProgress)
+            {
+                _layoutInProgress = true;
+                CalculateLayout(root, width, height, orientation, CurrentTime);
+                _layoutInProgress = false;
+            }
+            _applyDepth--;
         }
 
         public void ApplyComputedStyles(Rocket.Core.DOM.Node root)
@@ -407,32 +415,32 @@ namespace Rocket.Core
 
         public void Apply(Rocket.Core.DOM.Node root, int width, int height, Orientation orientation)
         {
-            ApplyComputedStyles(root, width, height, orientation);
+            CalculateLayout(root, width, height, orientation, CurrentTime);
         }
 
         public void Apply(Rocket.Core.DOM.Node root)
         {
-            ApplyComputedStyles(root, ViewportWidth, ViewportHeight, Orientation);
+            CalculateLayout(root, ViewportWidth, ViewportHeight, Orientation, CurrentTime);
         }
 
         public void ApplyStyles(Rocket.Core.DOM.Node root, int width, int height, Orientation orientation)
         {
-            ApplyComputedStyles(root, width, height, orientation);
+            CalculateLayout(root, width, height, orientation, CurrentTime);
         }
 
         public void ApplyStyles(Rocket.Core.DOM.Node root)
         {
-            ApplyComputedStyles(root, ViewportWidth, ViewportHeight, Orientation);
+            CalculateLayout(root, ViewportWidth, ViewportHeight, Orientation, CurrentTime);
         }
 
         public void ApplyStyle(Rocket.Core.DOM.Node root, int width, int height, Orientation orientation)
         {
-            ApplyComputedStyles(root, width, height, orientation);
+            CalculateLayout(root, width, height, orientation, CurrentTime);
         }
 
         public void ApplyStyle(Rocket.Core.DOM.Node root)
         {
-            ApplyComputedStyles(root, ViewportWidth, ViewportHeight, Orientation);
+            CalculateLayout(root, ViewportWidth, ViewportHeight, Orientation, CurrentTime);
         }
 
         private static bool SelectorMatches(string selector, string tag, string id, string className, Rocket.Core.DOM.Node node = null, CssEngine engine = null)
