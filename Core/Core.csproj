@@ -3,6 +3,18 @@
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
         <RootNamespace>Rocket.Core</RootNamespace>
+
+        <!-- NuGet package metadata -->
+        <PackageId>Rocket.NET</PackageId>
+        <Version>1.0.0</Version>
+        <Authors>Rocket.NET contributors</Authors>
+        <Description>Declarative, React-style UI framework for .NET. Compose component trees with C#, reconcile virtual DOM, apply CSS, and render via pluggable backends.</Description>
+        <PackageTags>ui;virtual-dom;components;css;layout</PackageTags>
+        <RepositoryUrl>https://github.com/your-org/Rocket.NET</RepositoryUrl>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     </PropertyGroup>
 
     <ItemGroup>
