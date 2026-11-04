@@ -1,4 +1,7 @@
-﻿namespace Rocket.Core.Components
+﻿using System;
+using Rocket.Core;
+
+namespace Rocket.Core.Components
 {
     public class IntrinsicAttributes
     {
@@ -18,5 +21,27 @@
         public string Role { get; set; }
         public string AriaLabel { get; set; }
         public string DataId { get; set; }
+
+        public Action<Event> OnClick { get; set; }
+        public Action<Event> OnDblClick { get; set; }
+        public Action<Event> OnMouseDown { get; set; }
+        public Action<Event> OnMouseUp { get; set; }
+        public Action<Event> OnMouseEnter { get; set; }
+        public Action<Event> OnMouseLeave { get; set; }
+        public Action<Event> OnMouseOver { get; set; }
+        public Action<Event> OnMouseOut { get; set; }
+        public Action<Event> OnMouseMove { get; set; }
+        public Action<Event> OnKeyDown { get; set; }
+        public Action<Event> OnKeyUp { get; set; }
+        public Action<Event> OnKeyPress { get; set; }
+        public Action<Event> OnChange { get; set; }
+        public Action<Event> OnInput { get; set; }
+        public Action<Event> OnFocus { get; set; }
+        public Action<Event> OnBlur { get; set; }
+        public Action<Event> OnSubmit { get; set; }
+        public Action<Event> OnLoad { get; set; }
+        public Action<Event> OnError { get; set; }
+        public Action<Event> OnContextMenu { get; set; }
+        public Action<Event> OnWheel { get; set; }
     }
 }

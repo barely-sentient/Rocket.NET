@@ -60,6 +60,11 @@ namespace Rocket.Core.DOM
         public Node[] Children { get; set; }
 
         /// <summary>
+        /// Parent node in the virtual DOM tree, used for event bubbling.
+        /// </summary>
+        public Node Parent { get; set; }
+
+        /// <summary>
         /// Gets or sets the component type represented by this node.
         /// </summary>
         /// <remarks>
@@ -97,6 +102,52 @@ namespace Rocket.Core.DOM
         /// Derived node types can override this method to include additional
         /// information, such as component properties.
         /// </remarks>
+        /// <summary>
+        /// Dispatches an event to this node and bubbles up the tree unless
+        /// propagation is stopped.
+        /// </summary>
+        public void DispatchEvent(string eventName, Rocket.Core.Event e)
+        {
+            if (e == null || string.IsNullOrWhiteSpace(eventName)) return;
+            e.Target = e.Target ?? this;
+
+            string pascal = eventName.Trim();
+            if (pascal.Length > 0)
+                pascal = char.ToUpperInvariant(pascal[0]) + pascal.Substring(1);
+            // common aliases
+            if (string.Equals(pascal, "Dblclick", StringComparison.OrdinalIgnoreCase)) pascal = "DblClick";
+            if (string.Equals(pascal, "Mouseenter", StringComparison.OrdinalIgnoreCase)) pascal = "MouseEnter";
+            if (string.Equals(pascal, "Mouseleave", StringComparison.OrdinalIgnoreCase)) pascal = "MouseLeave";
+            if (string.Equals(pascal, "Mousedown", StringComparison.OrdinalIgnoreCase)) pascal = "MouseDown";
+            if (string.Equals(pascal, "Mouseup", StringComparison.OrdinalIgnoreCase)) pascal = "MouseUp";
+            if (string.Equals(pascal, "Mouseover", StringComparison.OrdinalIgnoreCase)) pascal = "MouseOver";
+            if (string.Equals(pascal, "Mouseout", StringComparison.OrdinalIgnoreCase)) pascal = "MouseOut";
+            if (string.Equals(pascal, "Mousemove", StringComparison.OrdinalIgnoreCase)) pascal = "MouseMove";
+            if (string.Equals(pascal, "Keydown", StringComparison.OrdinalIgnoreCase)) pascal = "KeyDown";
+            if (string.Equals(pascal, "Keyup", StringComparison.OrdinalIgnoreCase)) pascal = "KeyUp";
+            if (string.Equals(pascal, "Keypress", StringComparison.OrdinalIgnoreCase)) pascal = "KeyPress";
+            if (string.Equals(pascal, "Contextmenu", StringComparison.OrdinalIgnoreCase)) pascal = "ContextMenu";
+
+            string propName = "On" + pascal;
+
+            if (!e.IsPropagationStopped && UntypedProps != null)
+            {
+                var t = UntypedProps.GetType();
+                var prop = t.GetProperty(propName);
+                var field = t.GetField(propName);
+                object handler = prop?.GetValue(UntypedProps) ?? field?.GetValue(UntypedProps);
+                if (handler is Delegate del)
+                {
+                    try { del.DynamicInvoke(e); } catch { }
+                }
+            }
+
+            if (e.Bubbles && !e.IsPropagationStopped && Parent != null)
+            {
+                Parent.DispatchEvent(eventName, e);
+            }
+        }
+
         public virtual void Dump(int tabIndent, StringBuilder builder)
         {
             builder.Append(new string(' ', tabIndent * 4));

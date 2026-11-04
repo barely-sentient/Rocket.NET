@@ -112,6 +112,8 @@ namespace Rocket.Core
                 if (isProvider) ((IContextProvider)component).PushContext();
 
                 instance.Child = Mount(renderedNode);
+                if (instance.Child != null && instance.Child.VNode != null)
+                    instance.Child.VNode.Parent = node;
 
                 if (isProvider) ((IContextProvider)component).PopContext();
                 // Add rendered children
@@ -132,7 +134,12 @@ namespace Rocket.Core
 
             Node[] children = node.Children ?? Array.Empty<Node>();
             foreach (Node child in children)
-                host.Children.Add(Mount(child));
+            {
+                var mounted = Mount(child);
+                if (mounted != null && mounted.VNode != null)
+                    mounted.VNode.Parent = node;
+                host.Children.Add(mounted);
+            }
 
             return host;
         }
