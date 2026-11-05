@@ -258,6 +258,19 @@ namespace VantaCSS
                 return $"rgb({r}, {g}, {b})";
             }
 
+            // text-shadow interpolation (offset-x offset-y blur-radius color)
+            if (TryParseTextShadow(from, out var fs) && TryParseTextShadow(to, out var ts))
+            {
+                double x = fs.X + (ts.X - fs.X) * progress;
+                double y = fs.Y + (ts.Y - fs.Y) * progress;
+                double blur = fs.Blur + (ts.Blur - fs.Blur) * progress;
+                var c = InterpolateColor(fs.Color, ts.Color, progress);
+                string colorStr = c.a != 1
+                    ? $"rgba({c.r}, {c.g}, {c.b}, {c.a.ToString("0.###", CultureInfo.InvariantCulture)})"
+                    : $"rgb({c.r}, {c.g}, {c.b})";
+                return $"{x.ToString("0.###", CultureInfo.InvariantCulture)}px {y.ToString("0.###", CultureInfo.InvariantCulture)}px {blur.ToString("0.###", CultureInfo.InvariantCulture)}px {colorStr}";
+            }
+
             // Numeric (with unit) interpolation.
             if (TryParseNumber(from, out double n1, out string u1) && TryParseNumber(to, out double n2, out string u2) &&
                 string.Equals(u1, u2, StringComparison.OrdinalIgnoreCase))
@@ -291,6 +304,70 @@ namespace VantaCSS
             if (!double.TryParse(sb.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out number)) return false;
             unit = value.Substring(i).Trim();
             return true;
+        }
+
+        private struct TextShadowInfo { public double X, Y, Blur; public Color Color; }
+
+        private static bool TryParseTextShadow(string value, out TextShadowInfo info)
+        {
+            info = new TextShadowInfo { X = 0, Y = 0, Blur = 0, Color = new Color { r = 255, g = 255, b = 255, a = 1 } };
+            if (string.IsNullOrWhiteSpace(value)) return false;
+            value = value.Trim();
+            if (value.Equals("none", StringComparison.OrdinalIgnoreCase))
+            {
+                info.Color = new Color { r = 0, g = 0, b = 0, a = 0 };
+                return true;
+            }
+
+            var parts = value.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            var nums = new List<double>();
+            var colorTokens = new List<string>();
+            bool inColor = false;
+            foreach (var p in parts)
+            {
+                if (!inColor && TryParseNumber(p, out double n, out string u) &&
+                    (string.IsNullOrEmpty(u) || u.Equals("px", StringComparison.OrdinalIgnoreCase)))
+                {
+                    nums.Add(n);
+                }
+                else
+                {
+                    inColor = true;
+                    colorTokens.Add(p);
+                }
+            }
+            if (nums.Count < 2) return false;
+            while (nums.Count < 3) nums.Add(0);
+            info.X = nums[0];
+            info.Y = nums[1];
+            info.Blur = nums[2];
+
+            string colorStr = colorTokens.Count > 0 ? string.Join(" ", colorTokens) : "transparent";
+            if (colorStr.Equals("transparent", StringComparison.OrdinalIgnoreCase))
+            {
+                info.Color = new Color { r = 0, g = 0, b = 0, a = 0 };
+            }
+            else if (TryParseColor(colorStr, out var c))
+            {
+                info.Color = c;
+            }
+            else
+            {
+                // allow missing color -> currentColor-ish white
+                info.Color = new Color { r = 255, g = 255, b = 255, a = 1 };
+            }
+            return true;
+        }
+
+        private static Color InterpolateColor(Color c1, Color c2, double progress)
+        {
+            return new Color
+            {
+                r = (int)Math.Round(c1.r + (c2.r - c1.r) * progress),
+                g = (int)Math.Round(c1.g + (c2.g - c1.g) * progress),
+                b = (int)Math.Round(c1.b + (c2.b - c1.b) * progress),
+                a = c1.a + (c2.a - c1.a) * progress
+            };
         }
 
         private struct Color { public int r, g, b; public double a; }
