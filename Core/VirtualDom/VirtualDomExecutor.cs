@@ -49,7 +49,7 @@ namespace Rocket.Core
             });
         }
 
-        public List<Rocket.Core.Stylesheet> Stylesheets { get; } = new List<Stylesheet>();
+        public List<VantaCSS.Stylesheet> Stylesheets { get; } = new List<Stylesheet>();
         public Node LastNodeToDraw { get; private set; }
 
         /// <summary>Mounts (or re-mounts) the root node and returns the resolved node to draw, without drawing.</summary>
@@ -83,10 +83,10 @@ namespace Rocket.Core
         /// <param name="rootNode">The root node of the virtual DOM tree to render.</param>
         public void Render(Node rootNode)
         {
-            Render(rootNode, 0, 0, Rocket.Core.Orientation.Portrait);
+            Render(rootNode, 0, 0, VantaCSS.Orientation.Portrait);
         }
 
-        public void Render(Node rootNode, int viewportWidth, int viewportHeight, Rocket.Core.Orientation orientation)
+        public void Render(Node rootNode, int viewportWidth, int viewportHeight, VantaCSS.Orientation orientation)
         {
             if (rootNode == null) return;
 
@@ -112,18 +112,18 @@ namespace Rocket.Core
             Render((Node)rootNode);
         }
 
-        public void Render<TProps>(Node<TProps> rootNode, int viewportWidth, int viewportHeight, Rocket.Core.Orientation orientation) where TProps : new()
+        public void Render<TProps>(Node<TProps> rootNode, int viewportWidth, int viewportHeight, VantaCSS.Orientation orientation) where TProps : new()
         {
             Render((Node)rootNode, viewportWidth, viewportHeight, orientation);
         }
 
-        public void Render(Node rootNode, Rocket.Core.Viewport viewport)
+        public void Render(Node rootNode, VantaCSS.Viewport viewport)
         {
             if (viewport == null) Render(rootNode);
             else Render(rootNode, viewport.Width, viewport.Height, viewport.Orientation);
         }
 
-        public void Render<TProps>(Node<TProps> rootNode, Rocket.Core.Viewport viewport) where TProps : new()
+        public void Render<TProps>(Node<TProps> rootNode, VantaCSS.Viewport viewport) where TProps : new()
         {
             Render((Node)rootNode, viewport);
         }

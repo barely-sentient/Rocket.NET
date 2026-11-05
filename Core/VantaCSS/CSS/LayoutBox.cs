@@ -1,6 +1,6 @@
 using System;
 
-namespace Rocket.Core
+namespace VantaCSS
 {
     /// <summary>
     /// A computed layout box (position and size) produced by the CSS engine.

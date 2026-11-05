@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
-using VantaCSS;
 
-namespace Rocket.Core
+namespace VantaCSS
 {
     /// <summary>
     /// Static CSS utility entry point where stylesheets can be specified.
@@ -10,7 +9,7 @@ namespace Rocket.Core
     public static partial class Css
     {
         public static List<Stylesheet> Stylesheets { get; } = new List<Stylesheet>();
-        public static VantaCSS.VantaCssEngine Engine { get; set; } = new VantaCSS.VantaCssEngine();
+        public static VantaCssEngine Engine { get; set; } = new VantaCssEngine();
 
         static Css()
         {

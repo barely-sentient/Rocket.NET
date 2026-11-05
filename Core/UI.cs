@@ -154,7 +154,7 @@ using VantaCSS;
         /// <summary>
         /// Stylesheets specified by the player/developer.
         /// </summary>
-        public static List<Rocket.Core.Stylesheet> Stylesheets { get; } = new List<Rocket.Core.Stylesheet>();
+        public static List<VantaCSS.Stylesheet> Stylesheets { get; } = new List<VantaCSS.Stylesheet>();
 
         /// <summary>
         /// Simple CSS engine instance for this UI.
@@ -164,7 +164,7 @@ using VantaCSS;
         /// <summary>
         /// Alias for <see cref="Stylesheets"/>.
         /// </summary>
-        public static List<Rocket.Core.Stylesheet> StyleSheets => Stylesheets;
+        public static List<VantaCSS.Stylesheet> StyleSheets => Stylesheets;
         
         /// <summary>
         /// Sets up the primitive dictionary
