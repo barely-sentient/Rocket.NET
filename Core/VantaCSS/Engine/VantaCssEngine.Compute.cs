@@ -101,6 +101,21 @@ namespace VantaCSS
             var transitionSpecs = new List<CssTransition>();
 
             var matchingRules = GetMatchingRules(tag, id, className, node, width, height, orientation);
+            // Global :root custom properties apply everywhere.
+            foreach (var sheet in Stylesheets)
+            {
+                foreach (var r in sheet.Rules)
+                {
+                    // skip at-rules (they have no direct declarations we need here)
+                    if (!MatchesMedia(r.Media, width, height, orientation)) continue;
+                    if (!string.Equals(r.Selector?.Trim(), ":root", StringComparison.OrdinalIgnoreCase)) continue;
+                    foreach (var kv in r.Declarations)
+                    {
+                        if (kv.Key.StartsWith("--", StringComparison.Ordinal) && !target.ContainsKey(kv.Key))
+                            target[kv.Key] = kv.Value;
+                    }
+                }
+            }
             foreach (var rule in matchingRules)
             {
                 foreach (var kv in rule.Declarations)
