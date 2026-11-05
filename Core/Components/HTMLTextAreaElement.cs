@@ -36,7 +36,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLTextAreaElementProps> TextArea(HTMLTextAreaElementProps props, params Node[] children)
         {
-            return (Node<HTMLTextAreaElementProps>) H("textarea", props, children);
+            return new Node<HTMLTextAreaElementProps>(typeof(HTMLTextAreaElement), props, children);
         }
 
     }

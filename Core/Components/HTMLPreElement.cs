@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLPreElementProps> Pre(HTMLPreElementProps props, params Node[] children)
         {
-            return (Node<HTMLPreElementProps>) H("pre", props, children);
+            return new Node<HTMLPreElementProps>(typeof(HTMLPreElement), props, children);
         }
 
     }

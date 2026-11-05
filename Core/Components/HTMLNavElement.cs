@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLNavElementProps> Nav(HTMLNavElementProps props, params Node[] children)
         {
-            return (Node<HTMLNavElementProps>) H("nav", props, children);
+            return new Node<HTMLNavElementProps>(typeof(HTMLNavElement), props, children);
         }
 
     }

@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLEmElementProps> Em(HTMLEmElementProps props, params Node[] children)
         {
-            return (Node<HTMLEmElementProps>) H("em", props, children);
+            return new Node<HTMLEmElementProps>(typeof(HTMLEmElement), props, children);
         }
 
     }

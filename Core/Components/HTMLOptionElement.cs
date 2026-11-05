@@ -28,7 +28,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLOptionElementProps> Option(HTMLOptionElementProps props, params Node[] children)
         {
-            return (Node<HTMLOptionElementProps>) H("option", props, children);
+            return new Node<HTMLOptionElementProps>(typeof(HTMLOptionElement), props, children);
         }
 
     }

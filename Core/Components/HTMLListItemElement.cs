@@ -25,7 +25,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLListItemElementProps> Li(HTMLListItemElementProps props, params Node[] children)
         {
-            return (Node<HTMLListItemElementProps>) H("li", props, children);
+            return new Node<HTMLListItemElementProps>(typeof(HTMLListItemElement), props, children);
         }
 
     }

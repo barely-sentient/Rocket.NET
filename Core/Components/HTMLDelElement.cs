@@ -26,7 +26,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLDelElementProps> Del(HTMLDelElementProps props, params Node[] children)
         {
-            return (Node<HTMLDelElementProps>) H("del", props, children);
+            return new Node<HTMLDelElementProps>(typeof(HTMLDelElement), props, children);
         }
 
     }

@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLMainElementProps> Main(HTMLMainElementProps props, params Node[] children)
         {
-            return (Node<HTMLMainElementProps>) H("main", props, children);
+            return new Node<HTMLMainElementProps>(typeof(HTMLMainElement), props, children);
         }
 
     }

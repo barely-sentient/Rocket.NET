@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLStrongElementProps> Strong(HTMLStrongElementProps props, params Node[] children)
         {
-            return (Node<HTMLStrongElementProps>) H("strong", props, children);
+            return new Node<HTMLStrongElementProps>(typeof(HTMLStrongElement), props, children);
         }
 
     }

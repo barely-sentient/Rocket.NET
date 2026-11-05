@@ -26,7 +26,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLInsElementProps> Ins(HTMLInsElementProps props, params Node[] children)
         {
-            return (Node<HTMLInsElementProps>) H("ins", props, children);
+            return new Node<HTMLInsElementProps>(typeof(HTMLInsElement), props, children);
         }
 
     }

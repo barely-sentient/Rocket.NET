@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLBlockquoteElementProps> BlockQuote(HTMLBlockquoteElementProps props, params Node[] children)
         {
-            return (Node<HTMLBlockquoteElementProps>) H("blockquote", props, children);
+            return new Node<HTMLBlockquoteElementProps>(typeof(HTMLBlockquoteElement), props, children);
         }
     }
 }

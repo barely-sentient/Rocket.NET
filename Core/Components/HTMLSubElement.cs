@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLSubElementProps> Sub(HTMLSubElementProps props, params Node[] children)
         {
-            return (Node<HTMLSubElementProps>) H("sub", props, children);
+            return new Node<HTMLSubElementProps>(typeof(HTMLSubElement), props, children);
         }
 
     }

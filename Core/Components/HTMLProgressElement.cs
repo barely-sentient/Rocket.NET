@@ -26,7 +26,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLProgressElementProps> Progress(HTMLProgressElementProps props, params Node[] children)
         {
-            return (Node<HTMLProgressElementProps>) H("progress", props, children);
+            return new Node<HTMLProgressElementProps>(typeof(HTMLProgressElement), props, children);
         }
 
     }

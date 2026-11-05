@@ -26,7 +26,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLOListElementProps> Ol(HTMLOListElementProps props, params Node[] children)
         {
-            return (Node<HTMLOListElementProps>) H("ol", props, children);
+            return new Node<HTMLOListElementProps>(typeof(HTMLOListElement), props, children);
         }
 
     }

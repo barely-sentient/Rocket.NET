@@ -23,7 +23,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLUListElementProps> Ul(HTMLUListElementProps props, params Node[] children)
         {
-            return (Node<HTMLUListElementProps>) H("ul", props, children);
+            return new Node<HTMLUListElementProps>(typeof(HTMLUListElement), props, children);
         }
 
     }

@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLArticleElementProps> Article(HTMLArticleElementProps props, params Node[] children)
         {
-            return (Node<HTMLArticleElementProps>) H("article", props, children);
+            return new Node<HTMLArticleElementProps>(typeof(HTMLArticleElement), props, children);
         }
     }
 }

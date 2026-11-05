@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLUnderlineElementProps> Underline(HTMLUnderlineElementProps props, params Node[] children)
         {
-            return (Node<HTMLUnderlineElementProps>) H("u", props, children);
+            return new Node<HTMLUnderlineElementProps>(typeof(HTMLUnderlineElement), props, children);
         }
 
     }

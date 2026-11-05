@@ -30,7 +30,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLFormElementProps> Form(HTMLFormElementProps props, params Node[] children)
         {
-            return (Node<HTMLFormElementProps>) H("form", props, children);
+            return new Node<HTMLFormElementProps>(typeof(HTMLFormElement), props, children);
         }
 
     }

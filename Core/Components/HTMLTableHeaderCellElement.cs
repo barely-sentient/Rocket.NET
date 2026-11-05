@@ -28,7 +28,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLTableHeaderCellElementProps> Th(HTMLTableHeaderCellElementProps props, params Node[] children)
         {
-            return (Node<HTMLTableHeaderCellElementProps>) H("th", props, children);
+            return new Node<HTMLTableHeaderCellElementProps>(typeof(HTMLTableHeaderCellElement), props, children);
         }
 
     }

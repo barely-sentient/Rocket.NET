@@ -25,7 +25,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLTimeElementProps> Time(HTMLTimeElementProps props, params Node[] children)
         {
-            return (Node<HTMLTimeElementProps>) H("time", props, children);
+            return new Node<HTMLTimeElementProps>(typeof(HTMLTimeElement), props, children);
         }
 
     }
