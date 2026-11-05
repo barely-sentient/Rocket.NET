@@ -711,10 +711,33 @@ progress, meter { display: inline-block; }
             }
         }
 
+        private static string StripCssComments(string selector)
+        {
+            if (string.IsNullOrEmpty(selector) || selector.IndexOf("/*", StringComparison.Ordinal) < 0)
+                return selector;
+            var sb = new StringBuilder(selector.Length);
+            int i = 0;
+            while (i < selector.Length)
+            {
+                int start = selector.IndexOf("/*", i, StringComparison.Ordinal);
+                if (start < 0)
+                {
+                    sb.Append(selector, i, selector.Length - i);
+                    break;
+                }
+                sb.Append(selector, i, start - i);
+                int end = selector.IndexOf("*/", start + 2, StringComparison.Ordinal);
+                if (end < 0) break;
+                i = end + 2;
+            }
+            return sb.ToString();
+        }
+
         private static bool SelectorMatches(string selector, string tag, string id, string className, Rocket.Core.DOM.Node node = null, VantaCssEngine engine = null)
         {
             if (string.IsNullOrWhiteSpace(selector)) return false;
-            selector = selector.Trim();
+            selector = StripCssComments(selector).Trim();
+            if (selector.Length == 0) return false;
             // Split only top-level commas (respect parentheses) so :is(...) selectors stay intact.
             var parts = new List<string>();
             int depth = 0; int start = 0;
@@ -734,6 +757,126 @@ progress, meter { display: inline-block; }
                 if (SingleSelectorMatches(s, tag, id, className, node, engine)) return true;
             }
             return false;
+        }
+
+        private static string NormalizeCombinators(string selector)
+        {
+            if (string.IsNullOrEmpty(selector)) return selector;
+            var sb = new StringBuilder(selector.Length + 8);
+            int depth = 0;
+            foreach (char ch in selector)
+            {
+                if (ch == '(') { depth++; sb.Append(ch); }
+                else if (ch == ')') { depth--; sb.Append(ch); }
+                else if (depth == 0 && (ch == '>' || ch == '+' || ch == '~'))
+                {
+                    sb.Append(' '); sb.Append(ch); sb.Append(' ');
+                }
+                else sb.Append(ch);
+            }
+            return sb.ToString();
+        }
+
+        private static void GetNodeIdentity(Rocket.Core.DOM.Node node, out string tag, out string id, out string className)
+        {
+            tag = null; id = null; className = null;
+            if (node == null) return;
+            try { tag = node.Type != null ? node.Type.Name : null; } catch { }
+            var props = node.UntypedProps;
+            if (props != null)
+            {
+                var ids = GetPropIds(props.GetType());
+                id = ids.IdField?.GetValue(props) as string ?? ids.IdProp?.GetValue(props) as string;
+                className = ids.ClassField?.GetValue(props) as string ?? ids.ClassProp?.GetValue(props) as string;
+            }
+        }
+
+        private static bool NodeMatchesSimpleSelector(string selector, Rocket.Core.DOM.Node node, VantaCssEngine engine)
+        {
+            if (node == null) return false;
+            string tag, id, className;
+            GetNodeIdentity(node, out tag, out id, out className);
+            return SingleSelectorMatches(selector, tag, id, className, node, engine);
+        }
+
+        private static bool MatchesAncestorChain(string[] parts, Rocket.Core.DOM.Node node, VantaCssEngine engine)
+        {
+            if (parts == null || parts.Length <= 1 || node == null) return true;
+            var current = node;
+            for (int p = parts.Length - 2; p >= 0; p--)
+            {
+                char combinator = ' ';
+                string token = parts[p];
+                if (token == ">" || token == "+" || token == "~")
+                {
+                    combinator = token[0];
+                    p--;
+                    if (p < 0) return false;
+                    token = parts[p];
+                }
+                if (string.IsNullOrWhiteSpace(token)) continue;
+
+                bool found = false;
+                if (combinator == '>')
+                {
+                    var parent = current.Parent;
+                    if (parent != null && NodeMatchesSimpleSelector(token, parent, engine))
+                    {
+                        found = true;
+                        current = parent;
+                    }
+                }
+                else if (combinator == '+')
+                {
+                    var parent = current.Parent;
+                    if (parent != null && parent.Children != null)
+                    {
+                        int idxChild = -1;
+                        for (int j = 0; j < parent.Children.Length; j++)
+                            if (parent.Children[j] == current) { idxChild = j; break; }
+                        if (idxChild > 0 && NodeMatchesSimpleSelector(token, parent.Children[idxChild - 1], engine))
+                        {
+                            found = true;
+                            current = parent.Children[idxChild - 1];
+                        }
+                    }
+                }
+                else if (combinator == '~')
+                {
+                    var parent = current.Parent;
+                    if (parent != null && parent.Children != null)
+                    {
+                        int idxChild = -1;
+                        for (int j = 0; j < parent.Children.Length; j++)
+                            if (parent.Children[j] == current) { idxChild = j; break; }
+                        for (int j = idxChild - 1; j >= 0; j--)
+                        {
+                            if (NodeMatchesSimpleSelector(token, parent.Children[j], engine))
+                            {
+                                found = true;
+                                current = parent.Children[j];
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    var ancestor = current.Parent;
+                    while (ancestor != null)
+                    {
+                        if (NodeMatchesSimpleSelector(token, ancestor, engine))
+                        {
+                            found = true;
+                            current = ancestor;
+                            break;
+                        }
+                        ancestor = ancestor.Parent;
+                    }
+                }
+                if (!found) return false;
+            }
+            return true;
         }
 
         private static bool SingleSelectorMatches(string selector, string tag, string id, string className, Rocket.Core.DOM.Node node = null, VantaCssEngine engine = null)
@@ -784,7 +927,7 @@ progress, meter { display: inline-block; }
             {
                 return node != null && node.Parent == null;
             }
-            var parts = selector.Split(new[] { ' ', '\t', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            var parts = NormalizeCombinators(selector).Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
             var last = parts.Length > 0 ? parts[parts.Length - 1] : selector;
 
             string t = null, i = null, c = null;
@@ -877,7 +1020,10 @@ progress, meter { display: inline-block; }
                 else ok = false;
                 if (!ok) return false;
             }
-            return true;
+
+            // Verify any ancestor/sibling qualifiers (descendant ' ', child '>',
+            // adjacent '+', general sibling '~').
+            return MatchesAncestorChain(parts, node, engine);
         }
     }
 
