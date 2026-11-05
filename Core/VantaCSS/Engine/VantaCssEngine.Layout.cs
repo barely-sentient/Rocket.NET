@@ -3,6 +3,8 @@ using Rocket.Core.DOM;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Linq;
 
 namespace VantaCSS
 {
@@ -302,6 +304,23 @@ namespace VantaCSS
                 node.ComputedStyles = style;
             }
 
+            // Inherit CSS custom properties from the parent node.
+            if (node.Parent != null && node.Parent.ComputedStyles != null)
+            {
+                foreach (var kv in node.Parent.ComputedStyles)
+                {
+                    if (kv.Key.StartsWith("--", StringComparison.Ordinal) && !style.ContainsKey(kv.Key))
+                        style[kv.Key] = kv.Value;
+                }
+            }
+
+            // Resolve var() references in all values.
+            var styleKeys = new List<string>(style.Keys);
+            foreach (var k in styleKeys)
+            {
+                style[k] = ResolveVarValue(style[k], node);
+            }
+
             var margin = ParseEdges(style, "margin", slotBox.Width);
             var padding = ParseEdges(style, "padding", slotBox.Width);
             var border = ParseEdges(style, "border-width", slotBox.Width);
@@ -326,21 +345,65 @@ namespace VantaCSS
             string position = (GetStyle(style, "position") ?? "static").ToLowerInvariant();
             string boxSizing = (GetStyle(style, "box-sizing") ?? "content-box").ToLowerInvariant();
 
-            double containingW = slotBox.Width > 0 ? slotBox.Width : vw;
-            double containingH = slotBox.Height > 0 ? slotBox.Height : vh;
+            bool isAbs = position == "absolute" || position == "fixed";
+
+            double containingW;
+            double containingH;
+            if (isAbs)
+            {
+                containingW = parentBorderBox != null && parentBorderBox.Width > 0 ? parentBorderBox.Width : vw;
+                containingH = parentBorderBox != null && parentBorderBox.Height > 0 ? parentBorderBox.Height : vh;
+            }
+            else
+            {
+                containingW = slotBox.Width > 0 ? slotBox.Width : vw;
+                containingH = slotBox.Height > 0 ? slotBox.Height : vh;
+            }
+
+            // offsets for positioned elements
+            double leftCss = double.NaN;
+            double topCss = double.NaN;
+            double rightCss = double.NaN;
+            double bottomCss = double.NaN;
+            if (isAbs)
+            {
+                leftCss = ParseLen(GetStyle(style, "left"), containingW, vw, vh);
+                topCss = ParseLen(GetStyle(style, "top"), containingH, vw, vh);
+                rightCss = ParseLen(GetStyle(style, "right"), containingW, vw, vh);
+                bottomCss = ParseLen(GetStyle(style, "bottom"), containingH, vw, vh);
+            }
 
             // width
             double w = ParseLen(GetStyle(style, "width"), containingW, vw, vh);
             bool autoW = double.IsNaN(w);
             if (autoW)
             {
-                w = containingW - margin.l - margin.r;
+                if (isAbs && !double.IsNaN(leftCss) && !double.IsNaN(rightCss))
+                {
+                    w = containingW - leftCss - rightCss - margin.l - margin.r;
+                }
+                else
+                {
+                    w = containingW - margin.l - margin.r;
+                }
                 if (w < 0) w = 0;
             }
             // height
             double h = ParseLen(GetStyle(style, "height"), containingH, vw, vh);
             bool autoH = double.IsNaN(h);
-            if (autoH) h = 0;
+            if (autoH)
+            {
+                if (isAbs && !double.IsNaN(topCss) && !double.IsNaN(bottomCss))
+                {
+                    h = containingH - topCss - bottomCss - margin.t - margin.b;
+                    autoH = false;
+                }
+                else
+                {
+                    h = 0;
+                }
+                if (h < 0) h = 0;
+            }
 
             // min/max
             double minW = ParseLen(GetStyle(style, "min-width"), containingW, vw, vh);
@@ -389,21 +452,16 @@ namespace VantaCSS
             };
 
             // position
-            if (position == "absolute" || position == "fixed")
+            if (isAbs)
             {
-                double left = ParseLen(GetStyle(style, "left"), parentBorderBox.Width, vw, vh);
-                double top = ParseLen(GetStyle(style, "top"), parentBorderBox.Height, vw, vh);
-                double right = ParseLen(GetStyle(style, "right"), parentBorderBox.Width, vw, vh);
-                double bottom = ParseLen(GetStyle(style, "bottom"), parentBorderBox.Height, vw, vh);
-
                 double x;
-                if (!double.IsNaN(left)) x = parentBorderBox.X + left + margin.l;
-                else if (!double.IsNaN(right)) x = parentBorderBox.X + parentBorderBox.Width - finalBox.Width - right - margin.r;
+                if (!double.IsNaN(leftCss)) x = parentBorderBox.X + leftCss + margin.l;
+                else if (!double.IsNaN(rightCss)) x = parentBorderBox.X + parentBorderBox.Width - finalBox.Width - rightCss - margin.r;
                 else x = slotBox.X + margin.l;
 
                 double y;
-                if (!double.IsNaN(top)) y = parentBorderBox.Y + top + margin.t;
-                else if (!double.IsNaN(bottom)) y = parentBorderBox.Y + parentBorderBox.Height - finalBox.Height - bottom - margin.b;
+                if (!double.IsNaN(topCss)) y = parentBorderBox.Y + topCss + margin.t;
+                else if (!double.IsNaN(bottomCss)) y = parentBorderBox.Y + parentBorderBox.Height - finalBox.Height - bottomCss - margin.b;
                 else y = slotBox.Y + margin.t;
 
                 finalBox.X = x;
@@ -429,7 +487,8 @@ namespace VantaCSS
             // arrange children
             if (node.Children != null && node.Children.Length > 0)
             {
-                ArrangeChildren(node, finalBox, vw, vh);
+                LayoutBox childContainingBlock = IsPositioned(node) ? finalBox : parentBorderBox;
+                ArrangeChildren(node, finalBox, childContainingBlock, vw, vh);
             }
             else
             {
@@ -446,7 +505,7 @@ namespace VantaCSS
             return finalBox;
         }
 
-        private void ArrangeChildren(Node node, LayoutBox parentBox, int vw, int vh)
+        private void ArrangeChildren(Node node, LayoutBox parentBox, LayoutBox containingBlock, int vw, int vh)
         {
             var style = node.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var children = node.Children ?? Array.Empty<Node>();
@@ -476,20 +535,28 @@ namespace VantaCSS
 
             if (isFlex && flexDirection.StartsWith("column"))
             {
-                ArrangeFlexColumn(node, children, parentBox, contentX, contentY, contentW, contentH, gap, vw, vh);
+                ArrangeFlexColumn(node, children, parentBox, contentX, contentY, contentW, contentH, gap, containingBlock, vw, vh);
             }
             else if (isFlex)
             {
-                ArrangeFlexRow(node, children, parentBox, contentX, contentY, contentW, contentH, gap, vw, vh);
+                ArrangeFlexRow(node, children, parentBox, contentX, contentY, contentW, contentH, gap, containingBlock, vw, vh);
             }
             else
             {
-                ArrangeBlock(node, children, parentBox, contentX, contentY, contentW, contentH, gap, vw, vh);
+                ArrangeBlock(node, children, parentBox, contentX, contentY, contentW, contentH, gap, containingBlock, vw, vh);
             }
 
             // auto height for parent
             string heightStyle = GetStyle(style, "height");
-            if (double.IsNaN(ParseLen(heightStyle, parentBox.Height, vw, vh)))
+            bool autoHeight = double.IsNaN(ParseLen(heightStyle, parentBox.Height, vw, vh));
+            string posStyle = (GetStyle(style, "position") ?? "static").ToLowerInvariant();
+            if ((posStyle == "absolute" || posStyle == "fixed") &&
+                !double.IsNaN(ParseLen(GetStyle(style, "top"), parentBox.Height, vw, vh)) &&
+                !double.IsNaN(ParseLen(GetStyle(style, "bottom"), parentBox.Height, vw, vh)))
+            {
+                autoHeight = false;
+            }
+            if (autoHeight)
             {
                 // compute bottom-most child
                 double bottom = contentY;
@@ -510,7 +577,7 @@ namespace VantaCSS
             }
         }
 
-        private void ArrangeBlock(Node node, Node[] children, LayoutBox parentBox, double contentX, double contentY, double contentW, double contentH, double gap, int vw, int vh)
+        private void ArrangeBlock(Node node, Node[] children, LayoutBox parentBox, double contentX, double contentY, double contentW, double contentH, double gap, LayoutBox containingBlock, int vw, int vh)
         {
             double y = contentY;
             foreach (var child in children)
@@ -529,18 +596,18 @@ namespace VantaCSS
                 if (cpos == "absolute" || cpos == "fixed")
                 {
                     var slot = new LayoutBox { X = contentX, Y = contentY, Width = contentW, Height = contentH };
-                    LayoutNode(child, slot, parentBox, vw, vh);
+                    LayoutNode(child, slot, containingBlock, vw, vh);
                     continue;
                 }
 
                 double slotY = y + cmargin.t;
                 var slot2 = new LayoutBox { X = contentX, Y = slotY, Width = contentW, Height = contentH };
-                var childBox = LayoutNode(child, slot2, parentBox, vw, vh);
+                var childBox = LayoutNode(child, slot2, containingBlock, vw, vh);
                 y = slotY + childBox.Height + cmargin.b + gap;
             }
         }
 
-        private void ArrangeFlexRow(Node node, Node[] children, LayoutBox parentBox, double contentX, double contentY, double contentW, double contentH, double gap, int vw, int vh)
+        private void ArrangeFlexRow(Node node, Node[] children, LayoutBox parentBox, double contentX, double contentY, double contentW, double contentH, double gap, LayoutBox containingBlock, int vw, int vh)
         {
             var style = node.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var padding = ParseEdges(style, "padding", parentBox.Width);
@@ -558,6 +625,13 @@ namespace VantaCSS
                 var cs = c.ComputedStyles;
                 string d = (GetStyle(cs, "display") ?? DefaultDisplay(c)).ToLowerInvariant();
                 if (d == "none") { SetNodeLayout(c, new LayoutBox { X = contentX, Y = contentY, Width = 0, Height = 0 }); continue; }
+                string cpos = (GetStyle(cs, "position") ?? "static").ToLowerInvariant();
+                if (cpos == "absolute" || cpos == "fixed")
+                {
+                    var slot = new LayoutBox { X = contentX, Y = contentY, Width = contentW, Height = contentH };
+                    LayoutNode(c, slot, containingBlock, vw, vh);
+                    continue;
+                }
                 list.Add(c);
             }
             int n = list.Count;
@@ -622,7 +696,7 @@ namespace VantaCSS
                     if (!cs.ContainsKey("width")) cs["width"] = w.ToString("0.###", CultureInfo.InvariantCulture) + "px";
                     if (!cs.ContainsKey("height")) cs["height"] = h.ToString("0.###", CultureInfo.InvariantCulture) + "px";
                 }
-                var childBox = LayoutNode(c, slot, parentBox, vw, vh);
+                var childBox = LayoutNode(c, slot, containingBlock, vw, vh);
                 x += w + cmargin.l + cmargin.r + gap;
                 maxH = Math.Max(maxH, childBox.Height + cmargin.t + cmargin.b);
             }
@@ -661,7 +735,7 @@ namespace VantaCSS
             }
         }
 
-        private void ArrangeFlexColumn(Node node, Node[] children, LayoutBox parentBox, double contentX, double contentY, double contentW, double contentH, double gap, int vw, int vh)
+        private void ArrangeFlexColumn(Node node, Node[] children, LayoutBox parentBox, double contentX, double contentY, double contentW, double contentH, double gap, LayoutBox containingBlock, int vw, int vh)
         {
             var style = node.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var padding = ParseEdges(style, "padding", parentBox.Width);
@@ -678,6 +752,13 @@ namespace VantaCSS
                 var cs = c.ComputedStyles;
                 string d = (GetStyle(cs, "display") ?? DefaultDisplay(c)).ToLowerInvariant();
                 if (d == "none") { SetNodeLayout(c, new LayoutBox { X = contentX, Y = contentY, Width = 0, Height = 0 }); continue; }
+                string cpos = (GetStyle(cs, "position") ?? "static").ToLowerInvariant();
+                if (cpos == "absolute" || cpos == "fixed")
+                {
+                    var slot = new LayoutBox { X = contentX, Y = contentY, Width = contentW, Height = contentH };
+                    LayoutNode(c, slot, containingBlock, vw, vh);
+                    continue;
+                }
                 list.Add(c);
             }
             int n = list.Count;
@@ -702,7 +783,7 @@ namespace VantaCSS
                 }
 
                 var slot = new LayoutBox { X = contentX + cmargin.l, Y = y + cmargin.t, Width = w, Height = h > 0 ? h : contentH };
-                var childBox = LayoutNode(c, slot, parentBox, vw, vh);
+                var childBox = LayoutNode(c, slot, containingBlock, vw, vh);
                 y += (h > 0 ? h : childBox.Height) + cmargin.t + cmargin.b + gap;
                 maxW = Math.Max(maxW, childBox.Width + cmargin.l + cmargin.r);
             }
@@ -725,6 +806,67 @@ namespace VantaCSS
             if (node == null || box == null) return;
             node.Layout = box;
             Layouts[node] = box;
+        }
+
+        private static bool IsPositioned(Node node)
+        {
+            if (node == null) return false;
+            var style = node.ComputedStyles;
+            string pos = (GetStyle(style, "position") ?? "static").ToLowerInvariant();
+            return pos == "relative" || pos == "absolute" || pos == "fixed" || pos == "sticky";
+        }
+
+        private static readonly Regex _varRegex = new Regex(@"var\(\s*(--[\w-]+)(?:\s*,\s*(?<fallback>[^)]*))?\)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        public string ResolveVarValue(string value, Node node)
+        {
+            return ResolveVarValue(value, node, null);
+        }
+
+        public string ResolveVarValue(string value, Node node, Dictionary<string, string> localVars)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return value;
+            if (!value.Contains("var(")) return value;
+            var visiting = new HashSet<string>(StringComparer.Ordinal);
+            return _varRegex.Replace(value, m =>
+            {
+                string varName = m.Groups[1].Value;
+                string fallback = m.Groups["fallback"].Success ? m.Groups["fallback"].Value.Trim() : null;
+                string resolved = LookupVar(varName, node, visiting, localVars);
+                if (resolved == null) resolved = fallback;
+                if (resolved == null) resolved = string.Empty;
+                if (resolved.Contains("var("))
+                    resolved = ResolveVarValue(resolved, node, localVars);
+                return resolved;
+            });
+        }
+
+        private string LookupVar(string name, Node node, HashSet<string> visiting, Dictionary<string, string> localVars)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+            if (visiting.Contains(name)) return null;
+            visiting.Add(name);
+            if (localVars != null && localVars.TryGetValue(name, out var lv))
+            {
+                if (lv != null && lv.Contains("var("))
+                    lv = ResolveVarValue(lv, node, localVars);
+                visiting.Remove(name);
+                return lv;
+            }
+            Node cur = node;
+            while (cur != null)
+            {
+                if (cur.ComputedStyles != null && cur.ComputedStyles.TryGetValue(name, out var v))
+                {
+                    if (v != null && v.Contains("var("))
+                        v = ResolveVarValue(v, cur);
+                    visiting.Remove(name);
+                    return v;
+                }
+                cur = cur.Parent;
+            }
+            visiting.Remove(name);
+            return null;
         }
 
         private static string GetStyle(Dictionary<string, string> style, string key)
