@@ -9,9 +9,11 @@ if it exists):
 - [x] Require a pull request before merging
 - [x] Require approvals (at least 1)
 - [x] Require status checks to pass before merging
+- [x] Require **all** status checks to pass before merging (every workflow job must be green)
   - `CI / Build and test`
   - `Commit Lint / Lint commit messages`
   - `PR Title / Validate PR title`
+  - (any additional workflow job added in the future)
 - [x] Require branches to be up to date before merging
 - [x] Do not allow bypassing the above settings
 - [x] Restrict who can push to matching branches (no direct pushes)
