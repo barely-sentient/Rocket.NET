@@ -63,6 +63,7 @@ namespace Rocket.Core
     /// </para>
     /// <code>
     /// using Rocket.Core;
+using VantaCSS;
     /// using static Rocket.Core.UI;
     ///
     /// Node button = C&lt;Button&gt;(
@@ -158,7 +159,7 @@ namespace Rocket.Core
         /// <summary>
         /// Simple CSS engine instance for this UI.
         /// </summary>
-        public static Rocket.Core.CssEngine CssEngine { get; set; } = new Rocket.Core.CssEngine();
+        public static VantaCSS.VantaCssEngine CssEngine { get; set; } = new VantaCSS.VantaCssEngine();
 
         /// <summary>
         /// Alias for <see cref="Stylesheets"/>.

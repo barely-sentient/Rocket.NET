@@ -1,17 +1,18 @@
 using System;
+using Rocket.Core;
+using Rocket.Core.DOM;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 using System.Text;
-using Rocket.Core.DOM;
 
-namespace Rocket.Core
+namespace VantaCSS
 {
     /// <summary>
-    /// Style computation (pseudo-classes + transitions) for <see cref="CssEngine"/>.
+    /// Style computation (pseudo-classes + transitions) for <see cref="VantaCssEngine"/>.
     /// </summary>
-    public partial class CssEngine
+    public partial class VantaCssEngine
     {
         private sealed class PropIds
         {

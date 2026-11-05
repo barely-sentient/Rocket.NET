@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using VantaCSS;
 
 namespace Rocket.Core
 {
@@ -9,7 +10,7 @@ namespace Rocket.Core
     public static partial class Css
     {
         public static List<Stylesheet> Stylesheets { get; } = new List<Stylesheet>();
-        public static CssEngine Engine { get; set; } = new CssEngine();
+        public static VantaCSS.VantaCssEngine Engine { get; set; } = new VantaCSS.VantaCssEngine();
 
         static Css()
         {

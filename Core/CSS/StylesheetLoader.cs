@@ -1,4 +1,5 @@
 using System;
+using VantaCSS;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -31,7 +32,7 @@ namespace Rocket.Core
         /// <summary>
         /// Loads every <see cref="StylesheetAttribute"/> declared on a type.
         /// </summary>
-        public static void LoadFor(Type type, CssEngine engine = null)
+        public static void LoadFor(Type type, VantaCSS.VantaCssEngine engine = null)
         {
             if (type == null) return;
             engine = engine ?? Css.Engine;
@@ -45,7 +46,7 @@ namespace Rocket.Core
         /// <summary>
         /// Loads every <see cref="StylesheetAttribute"/> declared on an assembly.
         /// </summary>
-        public static void LoadFor(Assembly assembly, CssEngine engine = null)
+        public static void LoadFor(Assembly assembly, VantaCSS.VantaCssEngine engine = null)
         {
             if (assembly == null) return;
             engine = engine ?? Css.Engine;
@@ -61,7 +62,7 @@ namespace Rocket.Core
         /// Scans a single assembly for component types carrying
         /// <see cref="StylesheetAttribute"/> and imports their stylesheets.
         /// </summary>
-        public static void AutoImport(Assembly assembly, CssEngine engine = null)
+        public static void AutoImport(Assembly assembly, VantaCSS.VantaCssEngine engine = null)
         {
             if (assembly == null) return;
             if (IsSystemAssembly(assembly)) return;
@@ -84,7 +85,7 @@ namespace Rocket.Core
         /// from <see cref="Component{TProps}"/> that carry a
         /// <see cref="StylesheetAttribute"/>, and imports their stylesheets.
         /// </summary>
-        public static void AutoImport(CssEngine engine = null)
+        public static void AutoImport(VantaCSS.VantaCssEngine engine = null)
         {
             engine = engine ?? Css.Engine;
             foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
@@ -96,7 +97,7 @@ namespace Rocket.Core
         /// <summary>
         /// Scans all types in an assembly for <see cref="StylesheetAttribute"/>.
         /// </summary>
-        public static void LoadAll(Assembly assembly, CssEngine engine = null)
+        public static void LoadAll(Assembly assembly, VantaCSS.VantaCssEngine engine = null)
         {
             if (assembly == null) return;
             engine = engine ?? Css.Engine;

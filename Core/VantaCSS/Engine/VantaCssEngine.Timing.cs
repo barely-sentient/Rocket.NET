@@ -1,17 +1,18 @@
 using System;
+using Rocket.Core;
 using Rocket.Core.DOM;
 
-namespace Rocket.Core
+namespace VantaCSS
 {
     /// <summary>
-    /// Timing management for <see cref="CssEngine"/>.
+    /// Timing management for <see cref="VantaCssEngine"/>.
     /// </summary>
     /// <remarks>
     /// The engine owns a clock (in seconds) so that transitions can be
     /// evaluated at any given point in time. Callers may either advance the
     /// clock with <see cref="Tick"/> or query a style at an explicit time.
     /// </remarks>
-    public partial class CssEngine
+    public partial class VantaCssEngine
     {
         /// <summary>Current engine time in seconds.</summary>
         public double CurrentTime { get; set; }

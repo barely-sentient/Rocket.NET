@@ -19,6 +19,7 @@
 
     <ItemGroup>
       <Folder Include="CSS\" />
+      <Folder Include="VantaCSS\Grammar\Core\" />
     </ItemGroup>
 
 </Project>

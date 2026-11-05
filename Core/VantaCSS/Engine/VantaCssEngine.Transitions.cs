@@ -1,10 +1,11 @@
 using System;
+using Rocket.Core;
+using Rocket.Core.DOM;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
-using Rocket.Core.DOM;
 
-namespace Rocket.Core
+namespace VantaCSS
 {
     /// <summary>
     /// A single CSS transition description.
@@ -51,7 +52,7 @@ namespace Rocket.Core
         public double LastTime { get; set; }
     }
 
-    public partial class CssEngine
+    public partial class VantaCssEngine
     {
         private readonly Dictionary<Node, NodeTransitionState> _transitionStates =
             new Dictionary<Node, NodeTransitionState>();
