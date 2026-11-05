@@ -473,6 +473,12 @@ table { display: table; border-collapse: collapse; }
                     if (kv.Key.StartsWith("--", StringComparison.Ordinal) && !root.ComputedStyles.ContainsKey(kv.Key))
                         root.ComputedStyles[kv.Key] = kv.Value;
                 }
+                // Inherit inheritable properties.
+                foreach (var kv in root.Parent.ComputedStyles)
+                {
+                    if (IsInheritable(kv.Key) && !root.ComputedStyles.ContainsKey(kv.Key))
+                        root.ComputedStyles[kv.Key] = kv.Value;
+                }
             }
 
             // Resolve var() references.
@@ -538,6 +544,45 @@ table { display: table; border-collapse: collapse; }
             CalculateLayout(root, ViewportWidth, ViewportHeight, Orientation, CurrentTime);
         }
 
+        public static bool IsInheritable(string prop)
+        {
+            if (string.IsNullOrWhiteSpace(prop)) return false;
+            prop = prop.Trim().ToLowerInvariant();
+            switch (prop)
+            {
+                case "color":
+                case "font":
+                case "font-family":
+                case "font-size":
+                case "font-style":
+                case "font-variant":
+                case "font-weight":
+                case "line-height":
+                case "letter-spacing":
+                case "text-align":
+                case "text-indent":
+                case "text-transform":
+                case "white-space":
+                case "word-spacing":
+                case "visibility":
+                case "cursor":
+                case "direction":
+                case "list-style":
+                case "list-style-type":
+                case "list-style-position":
+                case "list-style-image":
+                case "quotes":
+                case "border-collapse":
+                case "empty-cells":
+                case "caption-side":
+                case "orphans":
+                case "widows":
+                    return true;
+                default:
+                    return prop.StartsWith("--", StringComparison.Ordinal);
+            }
+        }
+
         private static bool SelectorMatches(string selector, string tag, string id, string className, Rocket.Core.DOM.Node node = null, VantaCssEngine engine = null)
         {
             if (string.IsNullOrWhiteSpace(selector)) return false;
@@ -551,6 +596,10 @@ table { display: table; border-collapse: collapse; }
 
         private static bool SingleSelectorMatches(string selector, string tag, string id, string className, Rocket.Core.DOM.Node node = null, VantaCssEngine engine = null)
         {
+            if (string.Equals(selector.Trim(), ":root", StringComparison.OrdinalIgnoreCase))
+            {
+                return node != null && node.Parent == null;
+            }
             var parts = selector.Split(new[] { ' ', '\t', '\n' }, StringSplitOptions.RemoveEmptyEntries);
             var last = parts.Length > 0 ? parts[parts.Length - 1] : selector;
 
