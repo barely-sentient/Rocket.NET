@@ -124,6 +124,11 @@ namespace VantaCSS
                     if (kv.Key.StartsWith("--", StringComparison.Ordinal) && !target.ContainsKey(kv.Key))
                         target[kv.Key] = kv.Value;
                 }
+                foreach (var kv in node.Parent.ComputedStyles)
+                {
+                    if (IsInheritable(kv.Key) && !target.ContainsKey(kv.Key))
+                        target[kv.Key] = kv.Value;
+                }
             }
 
             // Resolve var() references in target values.
@@ -380,6 +385,11 @@ namespace VantaCSS
                 foreach (var kv in root.Parent.ComputedStyles)
                 {
                     if (kv.Key.StartsWith("--", StringComparison.Ordinal) && !root.ComputedStyles.ContainsKey(kv.Key))
+                        root.ComputedStyles[kv.Key] = kv.Value;
+                }
+                foreach (var kv in root.Parent.ComputedStyles)
+                {
+                    if (IsInheritable(kv.Key) && !root.ComputedStyles.ContainsKey(kv.Key))
                         root.ComputedStyles[kv.Key] = kv.Value;
                 }
             }
