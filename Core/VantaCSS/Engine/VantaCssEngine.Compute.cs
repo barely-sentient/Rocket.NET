@@ -116,6 +116,21 @@ namespace VantaCSS
                 }
             }
 
+            // Inherit CSS custom properties from parent.
+            if (node.Parent != null && node.Parent.ComputedStyles != null)
+            {
+                foreach (var kv in node.Parent.ComputedStyles)
+                {
+                    if (kv.Key.StartsWith("--", StringComparison.Ordinal) && !target.ContainsKey(kv.Key))
+                        target[kv.Key] = kv.Value;
+                }
+            }
+
+            // Resolve var() references in target values.
+            var tkeys = new List<string>(target.Keys);
+            foreach (var k in tkeys)
+                target[k] = ResolveVarValue(target[k], node, target);
+
             // Also collect transition specs from the merged target (in case transition declared as a normal decl).
             var mergedSpecs = ParseTransitions(target);
             if (mergedSpecs.Count > 0) transitionSpecs = mergedSpecs;
@@ -358,8 +373,36 @@ namespace VantaCSS
                     root.ComputedStyles[key] = val;
                 }
             }
+
+            // Inherit CSS custom properties from parent.
+            if (root.Parent != null && root.Parent.ComputedStyles != null)
+            {
+                foreach (var kv in root.Parent.ComputedStyles)
+                {
+                    if (kv.Key.StartsWith("--", StringComparison.Ordinal) && !root.ComputedStyles.ContainsKey(kv.Key))
+                        root.ComputedStyles[kv.Key] = kv.Value;
+                }
+            }
+
+            // Resolve var() references.
+            var rkeys = new List<string>(root.ComputedStyles.Keys);
+            foreach (var k in rkeys)
+                root.ComputedStyles[k] = ResolveVarValue(root.ComputedStyles[k], root);
+
+            // Rebuild computed style string.
+            var sb = new StringBuilder();
+            foreach (var kv in root.ComputedStyles)
+            {
+                sb.Append(kv.Key).Append(": ").Append(kv.Value).Append("; ");
+            }
+            root.ComputedStyle = sb.ToString().Trim();
+            root.ComputedCss = root.ComputedStyle;
+
             foreach (var child in root.Children ?? Array.Empty<Rocket.Core.DOM.Node>())
+            {
+                child.Parent = root;
                 ApplyComputedStyles(child, width, height, orientation, time);
+            }
             if (_applyDepth == 1 && !_layoutInProgress)
             {
                 _layoutInProgress = true;
