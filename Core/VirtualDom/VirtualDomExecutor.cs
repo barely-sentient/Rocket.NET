@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using Rocket.Core.DOM;
+using VantaCSS;
 
 namespace Rocket.Core
 {
@@ -60,7 +61,7 @@ namespace Rocket.Core
             LastNodeToDraw = cur != null ? cur.VNode : null;
             return LastNodeToDraw;
         }
-        public CssEngine CssEngine { get; set; } = new CssEngine();
+        public VantaCSS.VantaCssEngine CssEngine { get; set; } = new VantaCSS.VantaCssEngine();
 
         public VirtualDomExecutor(IComponentRenderer renderer)
         {
@@ -68,10 +69,10 @@ namespace Rocket.Core
             CssEngine.Stylesheets = Stylesheets;
         }
 
-        public VirtualDomExecutor(IComponentRenderer renderer, Rocket.Core.CssEngine cssEngine)
+        public VirtualDomExecutor(IComponentRenderer renderer, VantaCSS.VantaCssEngine cssEngine)
         {
             _renderer = renderer;
-            CssEngine = cssEngine ?? new Rocket.Core.CssEngine();
+            CssEngine = cssEngine ?? new VantaCSS.VantaCssEngine();
             CssEngine.Stylesheets = Stylesheets;
         }
         

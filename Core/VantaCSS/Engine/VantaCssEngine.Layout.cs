@@ -1,12 +1,13 @@
 using System;
+using Rocket.Core;
+using Rocket.Core.DOM;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
-using Rocket.Core.DOM;
 
-namespace Rocket.Core
+namespace VantaCSS
 {
-    public partial class CssEngine
+    public partial class VantaCssEngine
     {
         private int _layoutVw;
         private int _layoutVh;

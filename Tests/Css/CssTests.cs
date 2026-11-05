@@ -1,6 +1,7 @@
 using Rocket.Core;
 using Rocket.Core.Components;
 using Rocket.Core.DOM;
+using VantaCSS;
 using Xunit;
 
 namespace Tests
@@ -14,7 +15,7 @@ namespace Tests
             sheet.AddRule("div", "color: red", "@media (min-width: 500px)");
             sheet.AddRule("span", "color: blue");
 
-            var engine = new CssEngine();
+            var engine = new VantaCSS.VantaCssEngine();
             engine.AddStylesheet(sheet);
 
             var css = engine.GenerateCss(800, 600, Orientation.Portrait);
@@ -39,7 +40,7 @@ namespace Tests
         {
             var sheet = new Stylesheet();
             sheet.AddRule("div", "color: red");
-            var engine = new CssEngine();
+            var engine = new VantaCSS.VantaCssEngine();
             engine.AddStylesheet(sheet);
 
             var node = new Node<HTMLDivElementProps>(typeof(HTMLDivElement), new HTMLDivElementProps { ClassName = "foo" });
@@ -52,7 +53,7 @@ namespace Tests
         [Fact]
         public void Orientation_ParsedFromString()
         {
-            var engine = new CssEngine(800, 600, "landscape");
+            var engine = new VantaCSS.VantaCssEngine(800, 600, "landscape");
             Assert.Equal(Orientation.Landscape, engine.Orientation);
         }
     }

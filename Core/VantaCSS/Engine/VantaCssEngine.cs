@@ -1,35 +1,67 @@
 using System;
+using Rocket.Core;
+using Rocket.Core.DOM;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
-using Rocket.Core.DOM;
 
-namespace Rocket.Core
+namespace VantaCSS
 {
     /// <summary>
     /// Simple CSS engine. Given a viewport, filters applicable rules and
     /// generates CSS for that point in time.
     /// </summary>
-    public partial class CssEngine
+    public partial class VantaCssEngine
     {
-        public List<Stylesheet> Stylesheets { get; set; } = new List<Stylesheet>();
+        private readonly List<Stylesheet> _stylesheets = new List<Stylesheet>();
+        private bool _defaultsAdded;
+
+        public List<Stylesheet> Stylesheets
+        {
+            get
+            {
+                EnsureDefaults();
+                return _stylesheets;
+            }
+            set
+            {
+                _stylesheets.Clear();
+                if (value != null) _stylesheets.AddRange(value);
+                _defaultsAdded = true;
+            }
+        }
+
+        private const string DefaultCss = @"
+* { box-sizing: border-box; }
+body { margin: 0; }
+div, section, article, header, footer, main, nav, aside { display: block; }
+span, a, label, strong, em, b, i { display: inline; }
+img { display: inline-block; }
+button { display: inline-block; }
+input, textarea, select { display: inline-block; }
+ul, ol { display: block; margin: 0; padding-left: 20px; }
+li { display: list-item; }
+table { display: table; border-collapse: collapse; }
+";
         public int ViewportWidth { get; set; }
         public int ViewportHeight { get; set; }
         public Orientation Orientation { get; set; } = Orientation.Portrait;
 
-        public CssEngine() { }
+        public VantaCssEngine()
+        {
+        }
 
-        public CssEngine(int width, int height, Orientation orientation)
+        public VantaCssEngine(int width, int height, Orientation orientation)
         {
             ViewportWidth = width;
             ViewportHeight = height;
             Orientation = orientation;
         }
 
-        public CssEngine(int width, int height, DeviceOrientation orientation)
+        public VantaCssEngine(int width, int height, DeviceOrientation orientation)
             : this(width, height, (Orientation)orientation) { }
 
-        public CssEngine(int width, int height, string orientation)
+        public VantaCssEngine(int width, int height, string orientation)
         {
             ViewportWidth = width;
             ViewportHeight = height;
@@ -39,7 +71,7 @@ namespace Rocket.Core
                 Orientation = Orientation.Portrait;
         }
 
-        public CssEngine(Viewport viewport)
+        public VantaCssEngine(Viewport viewport)
         {
             if (viewport != null)
             {
@@ -51,10 +83,18 @@ namespace Rocket.Core
 
         private int _stylesheetVersion;
 
+        private void EnsureDefaults()
+        {
+            if (_defaultsAdded) return;
+            _defaultsAdded = true;
+            AddStylesheet(DefaultCss);
+        }
+
         public void AddStylesheet(Stylesheet sheet)
         {
             if (sheet != null)
             {
+                EnsureDefaults();
                 Stylesheets.Add(sheet);
                 _stylesheetVersion++;
             }
@@ -62,7 +102,29 @@ namespace Rocket.Core
 
         public void AddStylesheet(string css)
         {
-            Stylesheets.Add(Stylesheet.FromCss(css));
+            EnsureDefaults();
+            var sheet = new Stylesheet();
+            sheet.RawCss = css;
+            foreach (var vr in VantaCSS.Grammar.Grammar.ParseRules(css))
+            {
+                if (vr.IsAtRule && vr.Rules != null && vr.Rules.Count > 0)
+                {
+                    foreach (var nr in vr.Rules)
+                    {
+                        var r = new CssRule { Selector = nr.Selector, Media = vr.Media, Raw = nr.Raw };
+                        foreach (var d in nr.Declarations) r.Declarations[d.Property] = d.Value;
+                        sheet.Rules.Add(r);
+                    }
+                }
+                else
+                {
+                    var r = new CssRule { Selector = vr.Selector, Media = vr.Media, Raw = vr.Raw };
+                    foreach (var d in vr.Declarations) r.Declarations[d.Property] = d.Value;
+                    sheet.Rules.Add(r);
+                }
+            }
+            Stylesheets.Add(sheet);
+            _stylesheetVersion++;
         }
 
         public void SetViewport(int width, int height, Orientation orientation)
@@ -449,7 +511,7 @@ namespace Rocket.Core
             CalculateLayout(root, ViewportWidth, ViewportHeight, Orientation, CurrentTime);
         }
 
-        private static bool SelectorMatches(string selector, string tag, string id, string className, Rocket.Core.DOM.Node node = null, CssEngine engine = null)
+        private static bool SelectorMatches(string selector, string tag, string id, string className, Rocket.Core.DOM.Node node = null, VantaCssEngine engine = null)
         {
             if (string.IsNullOrWhiteSpace(selector)) return false;
             selector = selector.Trim();
@@ -460,7 +522,7 @@ namespace Rocket.Core
             return false;
         }
 
-        private static bool SingleSelectorMatches(string selector, string tag, string id, string className, Rocket.Core.DOM.Node node = null, CssEngine engine = null)
+        private static bool SingleSelectorMatches(string selector, string tag, string id, string className, Rocket.Core.DOM.Node node = null, VantaCssEngine engine = null)
         {
             var parts = selector.Split(new[] { ' ', '\t', '\n' }, StringSplitOptions.RemoveEmptyEntries);
             var last = parts.Length > 0 ? parts[parts.Length - 1] : selector;
@@ -538,22 +600,22 @@ namespace Rocket.Core
     }
 
     /// <summary>
-    /// Alias for <see cref="CssEngine"/>.
+    /// Alias for <see cref="VantaCssEngine"/>.
     /// </summary>
-    public class SimpleCssEngine : CssEngine { }
+    public class SimpleVantaCssEngine : VantaCssEngine { }
 
     /// <summary>
-    /// Alias for <see cref="CssEngine"/>.
+    /// Alias for <see cref="VantaCssEngine"/>.
     /// </summary>
-    public class SimpleCSSEngine : CssEngine { }
+    public class SimpleCSSEngine : VantaCssEngine { }
 
     /// <summary>
-    /// Alias for <see cref="CssEngine"/>.
+    /// Alias for <see cref="VantaCssEngine"/>.
     /// </summary>
-    public class CSSEngine : CssEngine { }
+    public class CSSEngine : VantaCssEngine { }
 
     /// <summary>
-    /// Alias for <see cref="CssEngine"/>.
+    /// Alias for <see cref="VantaCssEngine"/>.
     /// </summary>
-    public class CssProcessor : CssEngine { }
+    public class CssProcessor : VantaCssEngine { }
 }

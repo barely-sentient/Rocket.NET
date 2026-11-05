@@ -1,11 +1,12 @@
 using System;
-using System.Collections.Generic;
+using Rocket.Core;
 using Rocket.Core.DOM;
+using System.Collections.Generic;
 
-namespace Rocket.Core
+namespace VantaCSS
 {
     /// <summary>
-    /// Pseudo-class (:hover, :focus, ...) support for <see cref="CssEngine"/>.
+    /// Pseudo-class (:hover, :focus, ...) support for <see cref="VantaCssEngine"/>.
     /// </summary>
     /// <remarks>
     /// A pseudo-class describes an interactive state of a node. The engine
@@ -13,7 +14,7 @@ namespace Rocket.Core
     /// helpers so that CSS rules such as <c>button:hover</c> only contribute
     /// to the computed style when their pseudo-class matches.
     /// </remarks>
-    public partial class CssEngine
+    public partial class VantaCssEngine
     {
         // -----------------------------------------------------------------
         // Engine-level interaction state
