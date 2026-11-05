@@ -25,7 +25,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLCanvasElementProps> Canvas(HTMLCanvasElementProps props, params Node[] children)
         {
-            return (Node<HTMLCanvasElementProps>) H("canvas", props, children);
+            return new Node<HTMLCanvasElementProps>(typeof(HTMLCanvasElement), props, children);
         }
 
     }

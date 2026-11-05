@@ -46,7 +46,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLInputElementProps> Input(HTMLInputElementProps props, params Node[] children)
         {
-            return (Node<HTMLInputElementProps>) H("input", props, children);
+            return new Node<HTMLInputElementProps>(typeof(HTMLInputElement), props, children);
         }
 
     }

@@ -34,7 +34,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLButtonElementProps> Button(HTMLButtonElementProps props, params Node[] children)
         {
-            return (Node<HTMLButtonElementProps>) H("button", props, children);
+            return new Node<HTMLButtonElementProps>(typeof(HTMLButtonElement), props, children);
         }
 
     }

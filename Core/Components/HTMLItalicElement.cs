@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLItalicElementProps> Italic(HTMLItalicElementProps props, params Node[] children)
         {
-            return (Node<HTMLItalicElementProps>) H("i", props, children);
+            return new Node<HTMLItalicElementProps>(typeof(HTMLItalicElement), props, children);
         }
 
     }

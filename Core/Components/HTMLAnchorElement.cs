@@ -33,7 +33,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLAnchorElementProps> Anchor(HTMLAnchorElementProps props, params Node[] children)
         {
-            return (Node<HTMLAnchorElementProps>) H("a", props, children);
+            return new Node<HTMLAnchorElementProps>(typeof(HTMLAnchorElement), props, children);
         }
     }
 }

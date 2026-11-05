@@ -415,6 +415,16 @@ using VantaCSS;
             return new Node<object>(type, props, children);
         }
 
+        public static Node<TProps> H<TProps>(string tagName, TProps props, params Node[] children) where TProps : new()
+        {
+            if (!_primitives.TryGetValue(tagName, out var type))
+            {
+                 throw new InvalidOperationException("Unknown tag: " + tagName);  
+            }
+            
+            return new Node<TProps>(type, props, children);
+        }
+
         public static (T Value, Action<T> SetValue) State<T>(T initial) => Hooks.State<T>(initial);
 
         public static void SideEffect(Action effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);

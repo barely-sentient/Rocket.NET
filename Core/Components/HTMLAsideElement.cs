@@ -22,7 +22,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLAsideElementProps> Aside(HTMLAsideElementProps props, params Node[] children)
         {
-            return (Node<HTMLAsideElementProps>) H("aside", props, children);
+            return new Node<HTMLAsideElementProps>(typeof(HTMLAsideElement), props, children);
         }
     }
 }

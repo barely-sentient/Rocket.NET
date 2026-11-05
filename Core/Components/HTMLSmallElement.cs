@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLSmallElementProps> Small(HTMLSmallElementProps props, params Node[] children)
         {
-            return (Node<HTMLSmallElementProps>) H("small", props, children);
+            return new Node<HTMLSmallElementProps>(typeof(HTMLSmallElement), props, children);
         }
 
     }

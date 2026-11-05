@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLSupElementProps> Sup(HTMLSupElementProps props, params Node[] children)
         {
-            return (Node<HTMLSupElementProps>) H("sup", props, children);
+            return new Node<HTMLSupElementProps>(typeof(HTMLSupElement), props, children);
         }
 
     }

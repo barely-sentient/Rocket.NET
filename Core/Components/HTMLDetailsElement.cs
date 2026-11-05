@@ -25,7 +25,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLDetailsElementProps> Details(HTMLDetailsElementProps props, params Node[] children)
         {
-            return (Node<HTMLDetailsElementProps>) H("details", props, children);
+            return new Node<HTMLDetailsElementProps>(typeof(HTMLDetailsElement), props, children);
         }
 
     }

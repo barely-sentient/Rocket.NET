@@ -30,7 +30,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLAudioElementProps> Audio(HTMLAudioElementProps props, params Node[] children)
         {
-            return (Node<HTMLAudioElementProps>) H("audio", props, children);
+            return new Node<HTMLAudioElementProps>(typeof(HTMLAudioElement), props, children);
         }
     }
 }

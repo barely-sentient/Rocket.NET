@@ -26,7 +26,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLLabelElementProps> Label(HTMLLabelElementProps props, params Node[] children)
         {
-            return (Node<HTMLLabelElementProps>) H("label", props, children);
+            return new Node<HTMLLabelElementProps>(typeof(HTMLLabelElement), props, children);
         }
 
     }

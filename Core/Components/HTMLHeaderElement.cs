@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHeaderElementProps> Header(HTMLHeaderElementProps props, params Node[] children)
         {
-            return (Node<HTMLHeaderElementProps>) H("header", props, children);
+            return new Node<HTMLHeaderElementProps>(typeof(HTMLHeaderElement), props, children);
         }
 
     }

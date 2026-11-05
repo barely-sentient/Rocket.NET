@@ -23,7 +23,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLTableRowElementProps> Tr(HTMLTableRowElementProps props, params Node[] children)
         {
-            return (Node<HTMLTableRowElementProps>) H("tr", props, children);
+            return new Node<HTMLTableRowElementProps>(typeof(HTMLTableRowElement), props, children);
         }
 
     }

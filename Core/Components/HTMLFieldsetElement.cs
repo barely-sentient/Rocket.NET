@@ -27,7 +27,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLFieldsetElementProps> Fieldset(HTMLFieldsetElementProps props, params Node[] children)
         {
-            return (Node<HTMLFieldsetElementProps>) H("fieldset", props, children);
+            return new Node<HTMLFieldsetElementProps>(typeof(HTMLFieldsetElement), props, children);
         }
 
     }

@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLSummaryElementProps> Summary(HTMLSummaryElementProps props, params Node[] children)
         {
-            return (Node<HTMLSummaryElementProps>) H("summary", props, children);
+            return new Node<HTMLSummaryElementProps>(typeof(HTMLSummaryElement), props, children);
         }
 
     }

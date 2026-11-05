@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLLegendElementProps> Legend(HTMLLegendElementProps props, params Node[] children)
         {
-            return (Node<HTMLLegendElementProps>) H("legend", props, children);
+            return new Node<HTMLLegendElementProps>(typeof(HTMLLegendElement), props, children);
         }
 
     }

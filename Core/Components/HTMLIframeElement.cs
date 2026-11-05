@@ -32,7 +32,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLIframeElementProps> Iframe(HTMLIframeElementProps props, params Node[] children)
         {
-            return (Node<HTMLIframeElementProps>) H("iframe", props, children);
+            return new Node<HTMLIframeElementProps>(typeof(HTMLIframeElement), props, children);
         }
 
         /// <summary>
@@ -43,7 +43,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLIframeElementProps> IFrame(HTMLIframeElementProps props, params Node[] children)
         {
-            return (Node<HTMLIframeElementProps>) H("iframe", props, children);
+            return new Node<HTMLIframeElementProps>(typeof(HTMLIframeElement), props, children);
         }
 
     }

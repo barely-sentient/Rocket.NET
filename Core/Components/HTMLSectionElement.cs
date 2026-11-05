@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLSectionElementProps> Section(HTMLSectionElementProps props, params Node[] children)
         {
-            return (Node<HTMLSectionElementProps>) H("section", props, children);
+            return new Node<HTMLSectionElementProps>(typeof(HTMLSectionElement), props, children);
         }
 
     }

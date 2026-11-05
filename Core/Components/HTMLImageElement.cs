@@ -33,7 +33,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLImageElementProps> Img(HTMLImageElementProps props, params Node[] children)
         {
-            return (Node<HTMLImageElementProps>) H("img", props, children);
+            return new Node<HTMLImageElementProps>(typeof(HTMLImageElement), props, children);
         }
 
     }

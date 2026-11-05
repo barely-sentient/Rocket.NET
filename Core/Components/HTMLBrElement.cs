@@ -22,7 +22,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLBrElementProps> Br(HTMLBrElementProps props, params Node[] children)
         {
-            return (Node<HTMLBrElementProps>) H("br", props, children);
+            return new Node<HTMLBrElementProps>(typeof(HTMLBrElement), props, children);
         }
     }
 }

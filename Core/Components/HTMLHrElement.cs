@@ -23,7 +23,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHrElementProps> Hr(HTMLHrElementProps props, params Node[] children)
         {
-            return (Node<HTMLHrElementProps>) H("hr", props, children);
+            return new Node<HTMLHrElementProps>(typeof(HTMLHrElement), props, children);
         }
 
     }

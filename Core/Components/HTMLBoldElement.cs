@@ -23,7 +23,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLBoldElementProps> Bold(HTMLBoldElementProps props, params Node[] children)
         {
-            return (Node<HTMLBoldElementProps>) H("b", props, children);
+            return new Node<HTMLBoldElementProps>(typeof(HTMLBoldElement), props, children);
         }
     }
 }

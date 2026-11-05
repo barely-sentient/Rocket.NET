@@ -33,7 +33,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLVideoElementProps> Video(HTMLVideoElementProps props, params Node[] children)
         {
-            return (Node<HTMLVideoElementProps>) H("video", props, children);
+            return new Node<HTMLVideoElementProps>(typeof(HTMLVideoElement), props, children);
         }
 
     }

@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> Heading(HTMLHeadingElementProps props, params Node[] children)
         {
-            return (Node<HTMLHeadingElementProps>) H("h1", props, children);
+            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> H1(HTMLHeadingElementProps props, params Node[] children)
         {
-            return (Node<HTMLHeadingElementProps>) H("h1", props, children);
+            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> Heading1(HTMLHeadingElementProps props, params Node[] children)
         {
-            return (Node<HTMLHeadingElementProps>) H("h1", props, children);
+            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
 
         /// <summary>
@@ -57,7 +57,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> H2(HTMLHeadingElementProps props, params Node[] children)
         {
-            return (Node<HTMLHeadingElementProps>) H("h2", props, children);
+            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> Heading2(HTMLHeadingElementProps props, params Node[] children)
         {
-            return (Node<HTMLHeadingElementProps>) H("h2", props, children);
+            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> H3(HTMLHeadingElementProps props, params Node[] children)
         {
-            return (Node<HTMLHeadingElementProps>) H("h3", props, children);
+            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> Heading3(HTMLHeadingElementProps props, params Node[] children)
         {
-            return (Node<HTMLHeadingElementProps>) H("h3", props, children);
+            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> H4(HTMLHeadingElementProps props, params Node[] children)
         {
-            return (Node<HTMLHeadingElementProps>) H("h4", props, children);
+            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
 
         /// <summary>
@@ -112,7 +112,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> Heading4(HTMLHeadingElementProps props, params Node[] children)
         {
-            return (Node<HTMLHeadingElementProps>) H("h4", props, children);
+            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
 
         /// <summary>
@@ -123,7 +123,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> H5(HTMLHeadingElementProps props, params Node[] children)
         {
-            return (Node<HTMLHeadingElementProps>) H("h5", props, children);
+            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
 
         /// <summary>
@@ -134,7 +134,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> Heading5(HTMLHeadingElementProps props, params Node[] children)
         {
-            return (Node<HTMLHeadingElementProps>) H("h5", props, children);
+            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
 
         /// <summary>
@@ -145,7 +145,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> H6(HTMLHeadingElementProps props, params Node[] children)
         {
-            return (Node<HTMLHeadingElementProps>) H("h6", props, children);
+            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
 
         /// <summary>
@@ -156,7 +156,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> Heading6(HTMLHeadingElementProps props, params Node[] children)
         {
-            return (Node<HTMLHeadingElementProps>) H("h6", props, children);
+            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
 
     }

@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLCodeElementProps> Code(HTMLCodeElementProps props, params Node[] children)
         {
-            return (Node<HTMLCodeElementProps>) H("code", props, children);
+            return new Node<HTMLCodeElementProps>(typeof(HTMLCodeElement), props, children);
         }
 
     }

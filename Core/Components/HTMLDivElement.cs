@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLDivElementProps> Div(HTMLDivElementProps props, params Node[] children)
         {
-            return (Node<HTMLDivElementProps>) H("div", props, children);
+            return new Node<HTMLDivElementProps>(typeof(HTMLDivElement), props, children);
         }
 
     }

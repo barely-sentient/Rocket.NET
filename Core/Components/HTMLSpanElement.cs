@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLSpanElementProps> Span(HTMLSpanElementProps props, params Node[] children)
         {
-            return (Node<HTMLSpanElementProps>) H("span", props, children);
+            return new Node<HTMLSpanElementProps>(typeof(HTMLSpanElement), props, children);
         }
 
     }

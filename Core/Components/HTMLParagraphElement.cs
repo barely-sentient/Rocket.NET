@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLParagraphElementProps> Paragraph(HTMLParagraphElementProps props, params Node[] children)
         {
-            return (Node<HTMLParagraphElementProps>) H("p", props, children);
+            return new Node<HTMLParagraphElementProps>(typeof(HTMLParagraphElement), props, children);
         }
 
     }

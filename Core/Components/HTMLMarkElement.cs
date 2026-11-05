@@ -24,7 +24,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLMarkElementProps> Mark(HTMLMarkElementProps props, params Node[] children)
         {
-            return (Node<HTMLMarkElementProps>) H("mark", props, children);
+            return new Node<HTMLMarkElementProps>(typeof(HTMLMarkElement), props, children);
         }
 
     }

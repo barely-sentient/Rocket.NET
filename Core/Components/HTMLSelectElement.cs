@@ -30,7 +30,7 @@ namespace Rocket.Core
         /// <returns></returns>
         public static Node<HTMLSelectElementProps> Select(HTMLSelectElementProps props, params Node[] children)
         {
-            return (Node<HTMLSelectElementProps>) H("select", props, children);
+            return new Node<HTMLSelectElementProps>(typeof(HTMLSelectElement), props, children);
         }
 
     }
