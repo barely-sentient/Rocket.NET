@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 using System.Text;
+using System.Linq;
 
 namespace VantaCSS
 {
@@ -51,17 +52,51 @@ namespace VantaCSS
 
         private List<CssRule> BuildMatchingRules(string tag, string id, string className, Node node, int width, int height, Orientation orientation)
         {
-            var list = new List<CssRule>();
+            var collected = new List<(CssRule rule, int order)>();
+            int order = 0;
             foreach (var sheet in Stylesheets)
             {
                 foreach (var rule in sheet.Rules)
                 {
                     if (!MatchesMedia(rule.Media, width, height, orientation)) continue;
                     if (!SelectorMatches(rule.Selector, tag, id, className, node, this)) continue;
-                    list.Add(rule);
+                    collected.Add((rule, order++));
                 }
             }
-            return list;
+            // Order-independent media-query precedence: more specific (narrower) media
+            // queries win over broader ones regardless of source order.
+            return collected
+                .OrderBy(x => MediaSpecificity(x.rule.Media))
+                .ThenBy(x => x.order)
+                .Select(x => x.rule)
+                .ToList();
+        }
+
+        private static int MediaSpecificity(string media)
+        {
+            if (string.IsNullOrWhiteSpace(media)) return 0;
+            string m = media.ToLowerInvariant();
+            int score = 0;
+            // max-width: smaller => more specific
+            foreach (System.Text.RegularExpressions.Match mx in System.Text.RegularExpressions.Regex.Matches(m, @"max-width\s*:\s*(\d+)"))
+            {
+                if (int.TryParse(mx.Groups[1].Value, out int v)) score += 10000 - v;
+            }
+            // min-width: larger => more specific
+            foreach (System.Text.RegularExpressions.Match mn in System.Text.RegularExpressions.Regex.Matches(m, @"min-width\s*:\s*(\d+)"))
+            {
+                if (int.TryParse(mn.Groups[1].Value, out int v)) score += v;
+            }
+            // max-height / min-height
+            foreach (System.Text.RegularExpressions.Match mx in System.Text.RegularExpressions.Regex.Matches(m, @"max-height\s*:\s*(\d+)"))
+            {
+                if (int.TryParse(mx.Groups[1].Value, out int v)) score += 10000 - v;
+            }
+            foreach (System.Text.RegularExpressions.Match mn in System.Text.RegularExpressions.Regex.Matches(m, @"min-height\s*:\s*(\d+)"))
+            {
+                if (int.TryParse(mn.Groups[1].Value, out int v)) score += v;
+            }
+            return score;
         }
 
         // -----------------------------------------------------------------

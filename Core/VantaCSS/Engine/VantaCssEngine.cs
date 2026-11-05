@@ -27,6 +27,7 @@ namespace VantaCSS
                 _stylesheets.Clear();
                 if (value != null) _stylesheets.AddRange(value);
                 _defaultsAdded = true;
+                _stylesheetVersion++;
             }
         }
 
