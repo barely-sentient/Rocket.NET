@@ -18,6 +18,7 @@ namespace Rocket.Core
     {
         private IComponentRenderer _renderer;
         private Instance _rootInstance;
+        private Node _rootComponentNode;
 
         private sealed class ComponentMeta
         {
@@ -55,12 +56,25 @@ namespace Rocket.Core
         /// <summary>Mounts (or re-mounts) the root node and returns the resolved node to draw, without drawing.</summary>
         public Node MountRoot(Node rootNode)
         {
+            if (rootNode != null) _rootComponentNode = rootNode;
             var instance = MountOrUpdate(rootNode);
             var cur = instance;
             while (cur != null && cur.Child != null && cur.Child.VNode != null) cur = cur.Child;
             LastNodeToDraw = cur != null ? cur.VNode : null;
             return LastNodeToDraw;
         }
+
+        /// <summary>
+        /// Re-runs the mounted component tree (preserving hook state) and
+        /// returns the resolved node to draw. Used for state-driven updates.
+        /// </summary>
+        public Node Refresh()
+        {
+            if (_rootComponentNode == null) return null;
+            return MountRoot(_rootComponentNode);
+        }
+
+        public Node RootComponentNode => _rootComponentNode;
         public VantaCSS.VantaCssEngine CssEngine { get; set; } = new VantaCSS.VantaCssEngine();
 
         public VirtualDomExecutor(IComponentRenderer renderer)
@@ -88,6 +102,7 @@ namespace Rocket.Core
 
         public void Render(Node rootNode, int viewportWidth, int viewportHeight, VantaCSS.Orientation orientation)
         {
+            if (rootNode != null) _rootComponentNode = rootNode;
             if (rootNode == null) return;
 
             var instance = MountOrUpdate(rootNode);

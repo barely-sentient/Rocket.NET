@@ -133,6 +133,11 @@ namespace VantaCSS
 
             // Collect matching declarations into an ordered target dictionary.
             var target = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var pseudoTargets = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["::before"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+                ["::after"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            };
             var transitionSpecs = new List<CssTransition>();
 
             var matchingRules = GetMatchingRules(tag, id, className, node, width, height, orientation);
@@ -153,6 +158,23 @@ namespace VantaCSS
             }
             foreach (var rule in matchingRules)
             {
+                string sel = rule.Selector ?? string.Empty;
+                bool isBefore = sel.IndexOf("::before", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool isAfter = sel.IndexOf("::after", StringComparison.OrdinalIgnoreCase) >= 0;
+                if (isBefore || isAfter)
+                {
+                    var pseudoName = isBefore ? "::before" : "::after";
+                    if (!pseudoTargets.ContainsKey(pseudoName))
+                        pseudoTargets[pseudoName] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var kv in rule.Declarations)
+                    {
+                        pseudoTargets[pseudoName][kv.Key] = kv.Value; // last wins
+                    }
+                    var pspecs = ParseTransitions(rule.Declarations);
+                    if (pspecs.Count > 0) transitionSpecs = pspecs;
+                    continue;
+                }
+
                 foreach (var kv in rule.Declarations)
                 {
                     target[kv.Key] = kv.Value; // last wins
@@ -186,6 +208,19 @@ namespace VantaCSS
             foreach (var k in tkeys)
                 target[k] = ResolveVarValue(target[k], node, target);
 
+            // Resolve var() references in pseudo-element target values.
+            foreach (var pk in new List<string>(pseudoTargets.Keys))
+            {
+                var pt = pseudoTargets[pk];
+                // Variables such as --fa are defined on the element's main target,
+                // so resolve against a merged variable context.
+                var varContext = new Dictionary<string, string>(target, StringComparer.OrdinalIgnoreCase);
+                foreach (var kv in pt) varContext[kv.Key] = kv.Value;
+                var pkeys = new List<string>(pt.Keys);
+                foreach (var k in pkeys)
+                    pt[k] = ResolveVarValue(pt[k], node, varContext);
+            }
+
             // Also collect transition specs from the merged target (in case transition declared as a normal decl).
             var mergedSpecs = ParseTransitions(target);
             if (mergedSpecs.Count > 0) transitionSpecs = mergedSpecs;
@@ -195,6 +230,7 @@ namespace VantaCSS
             if (st == null) 
             {
                 // No state tracking possible; just return target string.
+                if (node != null) node.PseudoStyles = pseudoTargets;
                 var r = DictToString(target);
                 node._styleCacheW = width;
                 node._styleCacheH = height;
@@ -314,6 +350,8 @@ namespace VantaCSS
             st.Computed = new Dictionary<string, string>(computed, StringComparer.OrdinalIgnoreCase);
             st.Transitions = transitionSpecs;
             st.LastTime = time;
+
+            if (node != null) node.PseudoStyles = pseudoTargets;
 
             // Build output string in target order.
             var sb = new StringBuilder();

@@ -45,6 +45,12 @@ namespace Rocket.Core.DOM
         /// </summary>
         public Dictionary<string, string> ComputedStyles { get; set; } = new Dictionary<string, string>();
 
+    /// <summary>
+    /// Computed styles for pseudo-elements (e.g. "::before", "::after") keyed by pseudo name.
+    /// </summary>
+    public Dictionary<string, Dictionary<string, string>> PseudoStyles { get; set; } =
+        new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>
         /// Alias for <see cref="ComputedStyle"/>.
         /// </summary>
@@ -122,6 +128,7 @@ namespace Rocket.Core.DOM
                 case "active": return Active;
                 case "visited": return Visited;
                 case "checked": return Checked;
+                case "host": return Parent == null;
                 case "disabled": return Disabled;
                 case "enabled": return !Disabled && Enabled;
                 default:
