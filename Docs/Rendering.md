@@ -1,50 +1,110 @@
-# Rendering Backends
+# Rendering
 
-Implement `IComponentRenderer` to target any backend:
+[Home](README.md) › Rendering
 
-```csharp
-public interface IComponentRenderer
-{
-    void Draw(Node rootNode);
-}
+Rocket.NET separates describing a UI from drawing it. [Components](Components.md) produce a virtual DOM tree. A renderer turns that tree into pixels or markup.
+
+```
+Component tree ──▶ VirtualDomExecutor ──▶ VantaCSS ──▶ IComponentRenderer.Draw(root)
 ```
 
-## HTML renderer (test helper)
+**On this page**
+[IComponentRenderer](#icomponentrenderer) · [VirtualDomExecutor](#virtualdomexecutor) · [Mounting vs. updating](#mounting-vs-updating) · [Stylesheets](#stylesheets) · [Supplying a CSS engine](#supplying-a-css-engine) · [HtmlRenderer](#htmlrenderer-test-helper) · [Reconciliation notes](#reconciliation-notes)
 
-`Tests/Rendering/HtmlRenderer.cs` is a reference implementation that emits HTML:
+## IComponentRenderer
 
-```csharp
-var renderer = new HtmlRenderer();
-var executor = new VirtualDomExecutor(renderer);
-executor.Render(app, 800, 600, Orientation.Portrait);
-Console.WriteLine(renderer.GetHtml());
-```
-
-## Custom backend
+Implement this interface for your target platform:
 
 ```csharp
+using Rocket.Core;
+using Rocket.Core.DOM;
+
 public class MyRenderer : IComponentRenderer
 {
     public void Draw(Node rootNode)
     {
-        // walk rootNode and its Children, read ComputedStyle/Layout, draw.
+        // Walk the node tree and draw or emit each node.
     }
 }
 ```
 
+`Draw` receives the resolved root node after reconciliation and CSS and layout processing. Each node carries:
+
+| Property | Description |
+| --- | --- |
+| `ComputedStyle` | Merged CSS declarations as a string. |
+| `ComputedStyles` | The same declarations as a dictionary. |
+| `Layout` | The computed layout box. |
+
+See [Styling](Styling.md#computed-styles-on-nodes) for how these are produced.
+
+Typical targets and what `Draw` does for each:
+
+| Target | Approach |
+| --- | --- |
+| HTML | Emit markup for each node. |
+| Desktop canvas | Draw resolved nodes to a 2D surface. |
+| Game engine | Map nodes to the engine's UI primitives. |
+
 ## VirtualDomExecutor
 
-```csharp
-var executor = new VirtualDomExecutor(renderer);
-// optional: supply a shared CSS engine
-var executor2 = new VirtualDomExecutor(renderer, new CssEngine());
+The executor owns the instance tree, runs hooks, reconciles changes, and applies CSS and layout:
 
-executor.Stylesheets.Add(sheet);
-executor.Render(rootNode, width, height, orientation);
-Node toDraw = executor.LastNodeToDraw;
+```csharp
+using Rocket.Core;
+
+IComponentRenderer renderer = new MyRenderer();
+var executor = new VirtualDomExecutor(renderer);
+
+Node root = new MyApp().Render();
+executor.Render(root);
 ```
 
-## Mount / reconcile
+Overloads accept a viewport, which drives [media queries](Styling.md#media-queries):
 
-`Render` reuses the instance tree when component types match, preserving hook state.
-Call `MountRoot` if you need the resolved node without drawing.
+```csharp
+executor.Render(root, 800, 600, VantaCSS.Orientation.Portrait);
+executor.Render(root, viewport);
+```
+
+### Mounting vs. updating
+
+The first `Render` call mounts the tree. Subsequent calls with a compatible root (same component type) reconcile against the previous tree, preserving hook state and DOM identity where possible.
+
+## Stylesheets
+
+Add stylesheets to the executor before, or between, renders:
+
+```csharp
+executor.Stylesheets.Add(new VantaCSS.Stylesheet("app", css));
+```
+
+The executor's `CssEngine` applies computed styles and layout during `Render`.
+
+## Supplying a CSS engine
+
+You can pass your own engine:
+
+```csharp
+var engine = new VantaCSS.VantaCssEngine();
+var executor = new VirtualDomExecutor(renderer, engine);
+```
+
+The executor syncs its `Stylesheets` list to the engine during rendering.
+
+## HtmlRenderer (test helper)
+
+The repository includes an `HtmlRenderer` in the test project. It implements `IComponentRenderer` and emits HTML, which makes it a useful reference implementation when writing your own renderer.
+
+## Reconciliation notes
+
+- Composite components (classes deriving from `Component<T>`) are expanded to their rendered host node.
+- Primitive (host) nodes build an instance tree of their children.
+- Hook state lives on the `Instance` and only the cursor is reset at the start of each render.
+- On unmount, side-effect cleanup delegates are invoked. See [`Effect`](Hooks.md#effect--sideeffect).
+
+For the full model, see [Architecture](Architecture.md#reconciliation).
+
+---
+
+← [Styling](Styling.md) · Next: [Architecture →](Architecture.md)
