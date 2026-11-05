@@ -15,6 +15,8 @@ namespace VantaCSS
         private readonly List<Stylesheet> _stylesheets = new List<Stylesheet>();
         private bool _defaultsAdded;
 
+        public FontFactory FontFactory { get; set; } = FontFactory.Instance;
+
         public List<Stylesheet> Stylesheets
         {
             get
@@ -25,23 +27,55 @@ namespace VantaCSS
             set
             {
                 _stylesheets.Clear();
+                _defaultsAdded = false;
+                EnsureDefaults();
                 if (value != null) _stylesheets.AddRange(value);
-                _defaultsAdded = true;
                 _stylesheetVersion++;
             }
         }
 
         private const string DefaultCss = @"
 * { box-sizing: border-box; }
-body { margin: 0; }
+body { display: block; margin: 8px; }
 div, section, article, header, footer, main, nav, aside { display: block; }
-span, a, label, strong, em, b, i { display: inline; }
-img { display: inline-block; }
-button { display: inline-block; }
-input, textarea, select { display: inline-block; }
-ul, ol { display: block; margin: 0; padding-left: 20px; }
+p { display: block; margin: 1em 0; }
+heading { display: block; font-weight: bold; margin: 1em 0; }
+h1, h2, h3, h4, h5, h6 { display: block; font-weight: bold; }
+span, a, label, strong, em, b, i { display: inline; margin: 0; padding: 0; }
+img, image { display: inline-block; }
+button { display: inline-block; margin: 0; padding: 4px 10px; background-color: #f0f0f0; color: #000000; border: 2px outset #808080; border-radius: 2px; cursor: default; text-align: center; font-size: 11px; }
+button:hover { background-color: #e0e0e0; border-color: #606060; }
+button:active { border-style: inset; background-color: #c0c0c0; border-color: #404040; color: #000000; }
+button:disabled { color: #808080; background-color: #f0f0f0; border-color: #b0b0b0; }
+input, textarea, select { display: inline-block; margin: 0; padding: 4px; background-color: #ffffff; color: #000000; border: 1px solid #cccccc; border-radius: 4px; }
+textarea { padding: 4px; }
+select { padding: 4px; }
+ul, ol, menu, dir { display: block; margin: 1em 0; padding-left: 40px; list-style-type: disc; }
+ol { list-style-type: decimal; }
 li { display: list-item; }
-table { display: table; border-collapse: collapse; }
+table { display: table; border-collapse: separate; border-spacing: 2px; text-indent: initial; box-sizing: border-box; }
+thead, tbody, tfoot { display: table-row-group; vertical-align: middle; border-color: inherit; }
+tr { display: table-row; vertical-align: inherit; border-color: inherit; }
+td, th { display: table-cell; vertical-align: inherit; padding: 2px; }
+th { font-weight: bold; }
+caption { display: table-caption; text-align: center; }
+blockquote { display: block; margin: 1em 40px; }
+hr { display: block; margin: 0.5em 0; overflow: hidden; color: gray; border-style: inset; border-width: 1px; }
+pre, code, kbd, samp { font-family: monospace; }
+a { color: blue; text-decoration: underline; cursor: pointer; }
+abbr[title], acronym[title] { text-decoration: dotted underline; }
+fieldset { display: block; margin: 0 2px; padding: 0.35em 0.75em 0.625em; border: 2px groove gray; }
+legend { padding: 0 2px; border: none; }
+label { cursor: default; }
+form { display: block; margin-top: 0; }
+figure { display: block; margin: 1em 40px; }
+figcaption { display: block; }
+center { display: block; text-align: center; }
+dd { display: block; margin-left: 40px; }
+dl { display: block; margin: 1em 0; }
+dt { display: block; }
+output { display: inline; }
+progress, meter { display: inline-block; }
 ";
         public int ViewportWidth { get; set; }
         public int ViewportHeight { get; set; }
@@ -90,6 +124,57 @@ table { display: table; border-collapse: collapse; }
             AddStylesheet(DefaultCss);
         }
 
+        private void ProcessFontFaces(string css)
+        {
+            if (string.IsNullOrWhiteSpace(css)) return;
+            try
+            {
+                foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(css, @"@font-face\s*\{([^}]*)\}", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                {
+                    var decls = VantaCSS.Grammar.Grammar.ParseDeclarations(m.Groups[1].Value);
+                    string family = null;
+                    string src = null;
+                    foreach (var d in decls)
+                    {
+                        if (string.Equals(d.Property, "font-family", StringComparison.OrdinalIgnoreCase)) family = d.Value.Trim().Trim('"', '\'');
+                        if (string.Equals(d.Property, "src", StringComparison.OrdinalIgnoreCase)) src = d.Value.Trim();
+                    }
+                    if (string.IsNullOrWhiteSpace(family) || string.IsNullOrWhiteSpace(src)) continue;
+
+                    // Extract first url(...) from src.
+                    var urlMatch = System.Text.RegularExpressions.Regex.Match(src, @"url\(\s*['""]?([^'""\)]+)['""]?\s*\)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    if (!urlMatch.Success) continue;
+                    var url = urlMatch.Groups[1].Value.Trim();
+                    if (string.IsNullOrWhiteSpace(url)) continue;
+
+                    // Only absolute http(s) URLs are downloadable; relative paths are left to the host.
+                    if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https")) continue;
+
+                    // woff2 cannot be decoded by the current renderer; log and skip.
+                    if (url.EndsWith(".woff2", StringComparison.OrdinalIgnoreCase))
+                    {
+                        System.Console.WriteLine($"[VantaCSS] @font-face '{family}' points to woff2, which is not supported yet: {url}");
+                        continue;
+                    }
+                    if (!url.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) && !url.EndsWith(".otf", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    try
+                    {
+                        using (var http = new System.Net.Http.HttpClient())
+                        {
+                            var bytes = http.GetByteArrayAsync(uri).GetAwaiter().GetResult();
+                            FontFactory.RegisterFont(family, bytes);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Console.WriteLine($"[VantaCSS] Failed to download font '{family}' from {url}: {ex.Message}");
+                    }
+                }
+            }
+            catch { }
+        }
+
         public void AddStylesheet(Stylesheet sheet)
         {
             if (sheet != null)
@@ -103,6 +188,7 @@ table { display: table; border-collapse: collapse; }
         public void AddStylesheet(string css)
         {
             EnsureDefaults();
+            ProcessFontFaces(css);
             var sheet = new Stylesheet();
             sheet.RawCss = css;
             foreach (var vr in VantaCSS.Grammar.Grammar.ParseRules(css))
@@ -545,7 +631,24 @@ table { display: table; border-collapse: collapse; }
             CalculateLayout(root, ViewportWidth, ViewportHeight, Orientation, CurrentTime);
         }
 
-        public static bool IsInheritable(string prop)
+        private static bool IsCssTagAlias(string selectorTag, string normalizedTypeName)
+    {
+        switch (selectorTag)
+        {
+            case "a": return normalizedTypeName == "anchor";
+            case "b": return normalizedTypeName == "bold";
+            case "i": return normalizedTypeName == "italic";
+            case "p": return normalizedTypeName == "paragraph";
+            case "img": return normalizedTypeName == "image";
+            case "ul": return normalizedTypeName == "ulist";
+            case "ol": return normalizedTypeName == "olist";
+            case "li": return normalizedTypeName == "listitem";
+            case "hr": return normalizedTypeName == "hr";
+            default: return false;
+        }
+    }
+
+    public static bool IsInheritable(string prop)
         {
             if (string.IsNullOrWhiteSpace(prop)) return false;
             prop = prop.Trim().ToLowerInvariant();
@@ -612,15 +715,71 @@ table { display: table; border-collapse: collapse; }
         {
             if (string.IsNullOrWhiteSpace(selector)) return false;
             selector = selector.Trim();
-            foreach (var s in selector.Split(','))
+            // Split only top-level commas (respect parentheses) so :is(...) selectors stay intact.
+            var parts = new List<string>();
+            int depth = 0; int start = 0;
+            for (int i = 0; i <= selector.Length; i++)
             {
-                if (SingleSelectorMatches(s.Trim(), tag, id, className, node, engine)) return true;
+                if (i == selector.Length || (selector[i] == ',' && depth == 0))
+                {
+                    parts.Add(selector.Substring(start, i - start).Trim());
+                    start = i + 1;
+                }
+                else if (i < selector.Length && selector[i] == '(') depth++;
+                else if (i < selector.Length && selector[i] == ')') depth--;
+            }
+            foreach (var s in parts)
+            {
+                if (string.IsNullOrWhiteSpace(s)) continue;
+                if (SingleSelectorMatches(s, tag, id, className, node, engine)) return true;
             }
             return false;
         }
 
         private static bool SingleSelectorMatches(string selector, string tag, string id, string className, Rocket.Core.DOM.Node node = null, VantaCssEngine engine = null)
         {
+            selector = (selector ?? string.Empty).Trim();
+            // Support :is(...) functional pseudo-class (used by Font Awesome and modern CSS).
+            if (selector.IndexOf(":is(", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                int isIdx = selector.IndexOf(":is(", StringComparison.OrdinalIgnoreCase);
+                int open = selector.IndexOf('(', isIdx);
+                int depth = 0;
+                int close = -1;
+                for (int ii = open; ii < selector.Length; ii++)
+                {
+                    if (selector[ii] == '(') depth++;
+                    else if (selector[ii] == ')') { depth--; if (depth == 0) { close = ii; break; } }
+                }
+                if (open >= 0 && close > open)
+                {
+                    string inner = selector.Substring(open + 1, close - open - 1);
+                    string rest = selector.Remove(isIdx, close - isIdx + 1).Trim();
+                    bool any = false;
+                    int d = 0; int start = 0;
+                    for (int k = 0; k <= inner.Length; k++)
+                    {
+                        if (k == inner.Length || (inner[k] == ',' && d == 0))
+                        {
+                            var part = inner.Substring(start, k - start).Trim();
+                            start = k + 1;
+                            if (string.IsNullOrEmpty(part)) continue;
+                            if (SingleSelectorMatches(part, tag, id, className, node, engine)) { any = true; break; }
+                        }
+                        else if (inner[k] == '(') d++;
+                        else if (inner[k] == ')') d--;
+                    }
+                    if (!any) return false;
+                    if (!string.IsNullOrWhiteSpace(rest))
+                    {
+                        rest = rest.Replace("::before", "").Replace("::after", "").Trim();
+                        if (!string.IsNullOrWhiteSpace(rest) && !SingleSelectorMatches(rest, tag, id, className, node, engine))
+                            return false;
+                    }
+                    return true;
+                }
+            }
+
             if (string.Equals(selector.Trim(), ":root", StringComparison.OrdinalIgnoreCase))
             {
                 return node != null && node.Parent == null;
@@ -657,12 +816,31 @@ table { display: table; border-collapse: collapse; }
                 }
                 else if (last[idx] == ':')
                 {
-                    idx++;
-                    var s2 = new StringBuilder();
-                    s2.Append(':');
-                    while (idx < last.Length && (char.IsLetterOrDigit(last[idx]) || last[idx] == '-' || last[idx] == '(' || last[idx] == ')'))
-                        s2.Append(last[idx++]);
-                    pseudos.Add(s2.ToString());
+                    // Support pseudo-elements (::before, ::after) and pseudo-classes (:hover, ...).
+                    if (idx + 1 < last.Length && last[idx + 1] == ':')
+                    {
+                        idx += 2;
+                        var s2 = new StringBuilder();
+                        s2.Append("::");
+                        while (idx < last.Length && (char.IsLetterOrDigit(last[idx]) || last[idx] == '-' || last[idx] == '(' || last[idx] == ')'))
+                            s2.Append(last[idx++]);
+                        var pseudoEl = s2.ToString();
+                        // Pseudo-elements do not affect base-node matching; they are handled separately.
+                        if (!string.Equals(pseudoEl, "::before", StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(pseudoEl, "::after", StringComparison.OrdinalIgnoreCase))
+                        {
+                            pseudos.Add(pseudoEl);
+                        }
+                    }
+                    else
+                    {
+                        idx++;
+                        var s2 = new StringBuilder();
+                        s2.Append(':');
+                        while (idx < last.Length && (char.IsLetterOrDigit(last[idx]) || last[idx] == '-' || last[idx] == '(' || last[idx] == ')'))
+                            s2.Append(last[idx++]);
+                        pseudos.Add(s2.ToString());
+                    }
                 }
                 else
                 {
@@ -681,9 +859,12 @@ table { display: table; border-collapse: collapse; }
             }
             if (t != null && !string.IsNullOrEmpty(tag))
             {
-                bool match = string.Equals(t, tag, StringComparison.OrdinalIgnoreCase) ||
-                             string.Equals(t, tag.Replace("HTML", "").Replace("Element", ""), StringComparison.OrdinalIgnoreCase) ||
-                             tag.ToLowerInvariant().Contains(t.ToLowerInvariant());
+                string normTag = tag.Replace("HTML", "").Replace("Element", "").ToLowerInvariant();
+                string sel = t.ToLowerInvariant();
+                bool match = string.Equals(sel, tag, StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(sel, normTag, StringComparison.OrdinalIgnoreCase) ||
+                             IsCssTagAlias(sel, normTag) ||
+                             (sel.Length >= 3 && normTag.Contains(sel));
                 if (!match) return false;
             }
 
