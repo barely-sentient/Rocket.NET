@@ -4,6 +4,9 @@ using System.Text;
 
 namespace VantaCSS.Tokeniser
 {
+    /// <summary>
+    /// Provides CSS tokenisation.
+    /// </summary>
     internal static class Tokeniser
     {
         private static readonly HashSet<string> ColorKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -14,6 +17,11 @@ namespace VantaCSS.Tokeniser
             "currentcolor", "inherit", "initial", "unset", "revert"
         };
 
+        /// <summary>
+        /// Parses the supplied CSS source into a list of tokens.
+        /// </summary>
+        /// <param name="css">The CSS source to tokenise.</param>
+        /// <returns>A list of tokens.</returns>
         internal static List<Token> Parse(string css)
         {
             var tokens = new List<Token>();
