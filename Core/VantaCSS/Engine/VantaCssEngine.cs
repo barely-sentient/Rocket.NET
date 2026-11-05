@@ -560,10 +560,34 @@ table { display: table; border-collapse: collapse; }
                 case "line-height":
                 case "letter-spacing":
                 case "text-align":
+                case "text-align-all":
+                case "text-align-last":
                 case "text-indent":
                 case "text-transform":
+                case "text-wrap":
+                case "text-wrap-mode":
+                case "text-wrap-style":
+                case "text-justify":
+                case "text-orientation":
+                case "text-combine-upright":
+                case "text-autospace":
+                case "text-spacing-trim":
+                case "text-overflow":
                 case "white-space":
+                case "white-space-collapse":
+                case "white-space-trim":
                 case "word-spacing":
+                case "word-break":
+                case "overflow-wrap":
+                case "word-wrap":
+                case "hyphens":
+                case "hyphenate-character":
+                case "hyphenate-limit-chars":
+                case "line-break":
+                case "hanging-punctuation":
+                case "writing-mode":
+                case "unicode-bidi":
+                case "tab-size":
                 case "visibility":
                 case "cursor":
                 case "direction":

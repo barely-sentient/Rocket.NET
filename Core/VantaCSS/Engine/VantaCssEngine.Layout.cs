@@ -374,6 +374,9 @@ namespace VantaCSS
             }
 
             // width
+            string textContent = GetNodeTextContent(node);
+            bool isInline = display == "inline" || display == "inline-block" || display == "inline-flex" || display == "inline-grid" || display == "inline-table";
+
             double w = ParseLen(GetStyle(style, "width"), containingW, vw, vh);
             bool autoW = double.IsNaN(w);
             if (autoW)
@@ -381,6 +384,10 @@ namespace VantaCSS
                 if (isAbs && !double.IsNaN(leftCss) && !double.IsNaN(rightCss))
                 {
                     w = containingW - leftCss - rightCss - margin.l - margin.r;
+                }
+                else if (isInline && !string.IsNullOrEmpty(textContent))
+                {
+                    w = MeasureTextWidth(textContent, style, containingW, vw, vh) + padding.l + padding.r + border.l + border.r;
                 }
                 else
                 {
@@ -494,8 +501,46 @@ namespace VantaCSS
             {
                 if (autoH)
                 {
-                    // default height for leaf
-                    finalBox.Height = 16;
+                    double fs = ParseLen(GetStyle(style, "font-size"), containingH, vw, vh);
+                    if (double.IsNaN(fs) || fs <= 0) fs = 16;
+                    double lh = ParseLen(GetStyle(style, "line-height"), containingH, vw, vh);
+                    double lhPx;
+                    if (double.IsNaN(lh)) lhPx = fs * 1.2;
+                    else if (lh < 10) lhPx = fs * lh;
+                    else lhPx = lh;
+
+                    if (!string.IsNullOrEmpty(textContent))
+                    {
+                        // estimate wrapped lines for block-level boxes
+                        double contentWidth = Math.Max(1, w - padding.l - padding.r - border.l - border.r - margin.l - margin.r);
+                        int lines = 1;
+                        if (!isInline)
+                        {
+                            double lineW = 0;
+                            lines = 1;
+                            for (int i = 0; i < textContent.Length; i++)
+                            {
+                                char c = textContent[i];
+                                double cw = (c == ' ') ? (fs * 0.25 + (double.IsNaN(ParseLen(GetStyle(style, "word-spacing"), contentWidth, vw, vh)) ? 0 : ParseLen(GetStyle(style, "word-spacing"), contentWidth, vw, vh))) : (fs * 0.5 + (double.IsNaN(ParseLen(GetStyle(style, "letter-spacing"), contentWidth, vw, vh)) ? 0 : ParseLen(GetStyle(style, "letter-spacing"), contentWidth, vw, vh)));
+                                if (lineW + cw > contentWidth && lineW > 0)
+                                {
+                                    lines++;
+                                    lineW = cw;
+                                }
+                                else
+                                {
+                                    lineW += cw;
+                                }
+                            }
+                            if (lines < 1) lines = 1;
+                        }
+                        finalBox.Height = lines * lhPx + padding.t + padding.b + border.t + border.b;
+                    }
+                    else
+                    {
+                        finalBox.Height = lhPx + padding.t + padding.b + border.t + border.b;
+                        if (finalBox.Height < 16) finalBox.Height = 16;
+                    }
                     node.Layout.Height = finalBox.Height;
                 }
             }
@@ -600,10 +645,9 @@ namespace VantaCSS
                     continue;
                 }
 
-                double slotY = y + cmargin.t;
-                var slot2 = new LayoutBox { X = contentX, Y = slotY, Width = contentW, Height = contentH };
+                var slot2 = new LayoutBox { X = contentX, Y = y, Width = contentW, Height = contentH };
                 var childBox = LayoutNode(child, slot2, containingBlock, vw, vh);
-                y = slotY + childBox.Height + cmargin.b + gap;
+                y = childBox.Y + childBox.Height + cmargin.b + gap;
             }
         }
 
@@ -688,7 +732,7 @@ namespace VantaCSS
                 if (double.IsNaN(h)) h = contentH;
                 if (h <= 0) h = 16;
 
-                var slot = new LayoutBox { X = x + cmargin.l, Y = contentY + cmargin.t, Width = w, Height = h };
+                var slot = new LayoutBox { X = x, Y = contentY, Width = w, Height = h };
                 // override width in style? LayoutNode will parse width again; to force, set slot width and let LayoutNode use specified? 
                 // Ensure computed style has width so LayoutNode uses it.
                 if (cs != null)
@@ -782,7 +826,7 @@ namespace VantaCSS
                     if (h > 0 && !cs.ContainsKey("height")) cs["height"] = h.ToString("0.###", CultureInfo.InvariantCulture) + "px";
                 }
 
-                var slot = new LayoutBox { X = contentX + cmargin.l, Y = y + cmargin.t, Width = w, Height = h > 0 ? h : contentH };
+                var slot = new LayoutBox { X = contentX, Y = y, Width = w, Height = h > 0 ? h : contentH };
                 var childBox = LayoutNode(c, slot, containingBlock, vw, vh);
                 y += (h > 0 ? h : childBox.Height) + cmargin.t + cmargin.b + gap;
                 maxW = Math.Max(maxW, childBox.Width + cmargin.l + cmargin.r);
@@ -888,6 +932,46 @@ namespace VantaCSS
             }
             catch { }
             return "block";
+        }
+
+        private static string GetNodeTextContent(Node node)
+        {
+            if (node?.UntypedProps == null) return null;
+            try
+            {
+                var t = node.UntypedProps.GetType();
+                var f = t.GetField("TextContent");
+                var p = t.GetProperty("TextContent");
+                return f?.GetValue(node.UntypedProps) as string ?? p?.GetValue(node.UntypedProps) as string;
+            }
+            catch { return null; }
+        }
+
+        private double MeasureTextWidth(string text, Dictionary<string, string> style, double containingW, int vw, int vh)
+        {
+            if (string.IsNullOrEmpty(text)) return 0;
+            double fs = ParseLen(GetStyle(style, "font-size"), containingW, vw, vh);
+            if (double.IsNaN(fs) || fs <= 0) fs = 16;
+            double letter = ParseLen(GetStyle(style, "letter-spacing"), containingW, vw, vh);
+            if (double.IsNaN(letter)) letter = 0;
+            double word = ParseLen(GetStyle(style, "word-spacing"), containingW, vw, vh);
+            if (double.IsNaN(word)) word = 0;
+
+            double width = 0;
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (c == ' ')
+                {
+                    // space glyph plus word-spacing gap
+                    width += fs * 0.25 + word;
+                }
+                else
+                {
+                    width += fs * 0.5 + letter;
+                }
+            }
+            return width;
         }
 
         private struct Edges { public double t, r, b, l; }
