@@ -1,4 +1,5 @@
-﻿using Rocket.Core.DOM;
+﻿using System;
+using Rocket.Core.DOM;
 
 namespace Rocket.Core
 {
@@ -11,6 +12,8 @@ namespace Rocket.Core
         public abstract Node Render();
         
         public TProps Props { get; set; } = new TProps();
+
+        public Node[] Children { get; set; } = Array.Empty<Node>();
 
         /// <summary>
         /// Resets hook state for the current render cycle.

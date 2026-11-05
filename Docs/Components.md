@@ -83,7 +83,7 @@ Div(new() { ClassName = "container" },
 );
 ```
 
-Components can also accept children. The base `Component<TProps>` does not declare a `Children` property by default. Add one to your props or component class, and the framework finds it by reflection and sets it from the node's children when mounting.
+Components can also accept children. The base `Component<TProps>` declares a `Node[] Children` property, and the framework sets it from the node's children when mounting or updating, before `Render()` is called.
 
 ## Intrinsic elements (HTML tags)
 
