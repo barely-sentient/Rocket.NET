@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Rocket.Core
+namespace VantaCSS
 {
     /// <summary>
     /// A collection of CSS rules representing a stylesheet.

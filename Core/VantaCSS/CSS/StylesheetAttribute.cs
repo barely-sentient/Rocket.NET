@@ -1,6 +1,6 @@
 using System;
 
-namespace Rocket.Core
+namespace VantaCSS
 {
     /// <summary>
     /// Declares a stylesheet that should be imported for a component or assembly.

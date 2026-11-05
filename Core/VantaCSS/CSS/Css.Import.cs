@@ -1,8 +1,7 @@
 using System;
-using VantaCSS;
 using System.Reflection;
 
-namespace Rocket.Core
+namespace VantaCSS
 {
     /// <summary>
     /// Stylesheet import helpers for <see cref="Css"/>.
@@ -18,19 +17,19 @@ namespace Rocket.Core
         }
 
         /// <summary>Loads stylesheets declared on a type.</summary>
-        public static void ImportFor(Type type, VantaCSS.VantaCssEngine engine = null)
+        public static void ImportFor(Type type, VantaCssEngine engine = null)
         {
             StylesheetLoader.LoadFor(type, engine);
         }
 
         /// <summary>Loads stylesheets declared on an assembly.</summary>
-        public static void ImportFor(Assembly assembly, VantaCSS.VantaCssEngine engine = null)
+        public static void ImportFor(Assembly assembly, VantaCssEngine engine = null)
         {
             StylesheetLoader.LoadFor(assembly, engine);
         }
 
         /// <summary>Scans an assembly for stylesheet attributes.</summary>
-        public static void ImportAll(Assembly assembly, VantaCSS.VantaCssEngine engine = null)
+        public static void ImportAll(Assembly assembly, VantaCssEngine engine = null)
         {
             StylesheetLoader.LoadAll(assembly, engine);
         }
@@ -39,7 +38,7 @@ namespace Rocket.Core
         /// Scans all loaded non-system assemblies for component types carrying
         /// <see cref="StylesheetAttribute"/> and imports their stylesheets.
         /// </summary>
-        public static void AutoImport(VantaCSS.VantaCssEngine engine = null)
+        public static void AutoImport(VantaCssEngine engine = null)
         {
             StylesheetLoader.AutoImport(engine);
         }

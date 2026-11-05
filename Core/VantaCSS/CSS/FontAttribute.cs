@@ -1,6 +1,6 @@
 using System;
 
-namespace Rocket.Core
+namespace VantaCSS
 {
     /// <summary>
     /// Declares a font that should be loaded and registered under a name.

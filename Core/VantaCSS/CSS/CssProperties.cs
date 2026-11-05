@@ -1,4 +1,4 @@
-namespace Rocket.Core
+namespace VantaCSS
 {
     /// <summary>Well-known CSS property names supported by the engine/renderer.</summary>
     public static class CssProperties

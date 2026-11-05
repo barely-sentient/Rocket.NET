@@ -1,4 +1,4 @@
-namespace Rocket.Core
+namespace VantaCSS
 {
     /// <summary>
     /// Describes a viewport used for responsive CSS generation.

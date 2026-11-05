@@ -1,5 +1,4 @@
 using System;
-using Rocket.Core;
 using Rocket.Core.DOM;
 
 namespace VantaCSS

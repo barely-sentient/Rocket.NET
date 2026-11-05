@@ -53,30 +53,30 @@ namespace Rocket.Core.DOM
         // -----------------------------------------------------------------
         // Layout results computed by the CSS engine.
         // -----------------------------------------------------------------
-        private Rocket.Core.LayoutBox _layout;
-        public Rocket.Core.LayoutBox Layout { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox LayoutBox { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox LayoutBounds { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox LayoutFrame { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox LayoutRect { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox LayoutRectangle { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox RenderBounds { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox FrameBounds { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox ComputedLayout { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox BoxLayout { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox Box { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox Bounds { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox Rect { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox Rectangle { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox Frame { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox Position { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox LayoutInfo { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox LayoutResult { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox CssLayout { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox BoxModel { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox ComputedBox { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox ComputedBounds { get => _layout; set => _layout = value; }
-        public Rocket.Core.LayoutBox ComputedRect { get => _layout; set => _layout = value; }
+        private VantaCSS.LayoutBox _layout;
+        public VantaCSS.LayoutBox Layout { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox LayoutBox { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox LayoutBounds { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox LayoutFrame { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox LayoutRect { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox LayoutRectangle { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox RenderBounds { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox FrameBounds { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox ComputedLayout { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox BoxLayout { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox Box { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox Bounds { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox Rect { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox Rectangle { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox Frame { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox Position { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox LayoutInfo { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox LayoutResult { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox CssLayout { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox BoxModel { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox ComputedBox { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox ComputedBounds { get => _layout; set => _layout = value; }
+        public VantaCSS.LayoutBox ComputedRect { get => _layout; set => _layout = value; }
 
         /// <summary>
         /// Alias for <see cref="ComputedStyle"/>.
@@ -151,7 +151,7 @@ namespace Rocket.Core.DOM
         // Style computation cache (internal perf aid).
         internal int _styleCacheW;
         internal int _styleCacheH;
-        internal Rocket.Core.Orientation _styleCacheO;
+        internal VantaCSS.Orientation _styleCacheO;
         internal double _styleCacheTime;
         internal string _styleCachePseudoKey;
         internal string _styleCacheResult;

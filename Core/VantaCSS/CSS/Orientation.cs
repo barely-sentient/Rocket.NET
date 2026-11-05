@@ -1,4 +1,4 @@
-namespace Rocket.Core
+namespace VantaCSS
 {
     /// <summary>
     /// Viewport orientation used by the CSS engine.
