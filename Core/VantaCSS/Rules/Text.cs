@@ -199,19 +199,24 @@ namespace VantaCSS.Engine
         Auto = 0,
 
         /// <summary>
+        /// Uses the font's preferred underline position.
+        /// </summary>
+        FromFont = 1 << 0,
+
+        /// <summary>
         /// Positions the underline below the text baseline.
         /// </summary>
-        Under = 1 << 0,
+        Under = 1 << 1,
 
         /// <summary>
         /// Positions the underline on the left side of the text.
         /// </summary>
-        Left = 1 << 1,
+        Left = 1 << 2,
 
         /// <summary>
         /// Positions the underline on the right side of the text.
         /// </summary>
-        Right = 1 << 2
+        Right = 1 << 3
     }
 
     /// <summary>
