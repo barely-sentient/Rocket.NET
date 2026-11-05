@@ -45,9 +45,25 @@ namespace VantaCSS
             string pseudoKey = node == null
                 ? string.Empty
                 : $"{node.Hovered}:{node.Focused}:{node.Active}:{node.Visited}:{node.Checked}:{node.Disabled}:{node.PseudoState}";
-            string key = $"{tag}|{id}|{className}|{width}|{height}|{orientation}|{pseudoKey}|{Stylesheets.Count}|{_stylesheetVersion}";
+            string ancestorKey = GetAncestorKey(node);
+            string key = $"{tag}|{id}|{className}|{width}|{height}|{orientation}|{pseudoKey}|{ancestorKey}|{Stylesheets.Count}|{_stylesheetVersion}";
 
             return _ruleMatchCache.GetOrAdd(key, _ => BuildMatchingRules(tag, id, className, node, width, height, orientation));
+        }
+
+        private static string GetAncestorKey(Node node)
+        {
+            if (node == null || node.Parent == null) return string.Empty;
+            var sb = new StringBuilder();
+            var current = node.Parent;
+            while (current != null)
+            {
+                string tag, id, className;
+                VantaCssEngine.GetNodeIdentity(current, out tag, out id, out className);
+                sb.Append(tag).Append(':').Append(id).Append(':').Append(className).Append(';');
+                current = current.Parent;
+            }
+            return sb.ToString();
         }
 
         private List<CssRule> BuildMatchingRules(string tag, string id, string className, Node node, int width, int height, Orientation orientation)
@@ -119,7 +135,7 @@ namespace VantaCSS
                 className = ids.ClassField?.GetValue(props) as string ?? ids.ClassProp?.GetValue(props) as string;
             }
 
-            string pseudoKey = $"{tag}|{id}|{className}|{node.Hovered}:{node.Focused}:{node.Active}:{node.Visited}:{node.Checked}:{node.Disabled}:{node.PseudoState}";
+            string pseudoKey = $"{tag}|{id}|{className}|{node.Hovered}:{node.Focused}:{node.Active}:{node.Visited}:{node.Checked}:{node.Disabled}:{node.PseudoState}|{GetAncestorKey(node)}";
             if (node._styleCacheValid &&
                 node._styleCacheW == width &&
                 node._styleCacheH == height &&
