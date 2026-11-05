@@ -49,42 +49,56 @@ namespace VantaCSS.Engine
         public Position Position { get; set; } = Position.Inherit;
 
         /// <summary>
-        /// Offset top
+        /// Gets or sets the top offset of the positioned element in pixels.
         /// </summary>
         public float Top { get; set; } = 0f;
-        
+
         /// <summary>
-        /// Offset Bottom
+        /// Gets or sets the bottom offset of the positioned element in pixels.
         /// </summary>
         public float Bottom { get; set; } = 0f;
-        
+
         /// <summary>
-        /// Offset Left
+        /// Gets or sets the left offset of the positioned element in pixels.
         /// </summary>
         public float Left { get; set; } = 0f;
-        
+
         /// <summary>
-        /// Offset Right
+        /// Gets or sets the right offset of the positioned element in pixels.
         /// </summary>
         public float Right { get; set; } = 0f;
+
+        /// <summary>
+        /// Sets all four offsets (Top, Right, Bottom, Left) simultaneously.
+        /// </summary>
+        public float Inset
+        {
+            set
+            {
+                Top = value;
+                Right = value;
+                Bottom = value;
+                Left = value;
+            }
+        }
         
         /// <summary>
-        /// Spacing between the top of the component, and it's previous vertical item
+        /// Gets or sets the top margin in pixels.
         /// </summary>
         public float MarginTop { get; set; } = 0f;
-        
+
         /// <summary>
-        /// Spacing between the bottom of the component, and it's next vertical item
+        /// Gets or sets the bottom margin in pixels.
         /// </summary>
         public float MarginBottom { get; set; } = 0f;
-        
+
         /// <summary>
-        /// Spacing between the left of the component, and the element to it's left
+        /// Gets or sets the left margin in pixels.
         /// </summary>
         public float MarginLeft { get; set; } = 0f;
-        
+
         /// <summary>
-        /// Spacing between the right of the component, and the element to it's right
+        /// Gets or sets the right margin in pixels.
         /// </summary>
         public float MarginRight { get; set; } = 0f;
         

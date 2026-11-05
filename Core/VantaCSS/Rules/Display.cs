@@ -5,7 +5,7 @@ namespace VantaCSS.Engine
     public partial class NodeComputedRuleset
     {
         /// <summary>
-        /// Added the display property
+        /// Gets or sets how the element is displayed and how its children participate in layout.
         /// </summary>
         public DisplayMode Display = DisplayMode.Inherit;
     }

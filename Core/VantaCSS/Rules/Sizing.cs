@@ -66,5 +66,30 @@
                 PaddingBottom = value;
             }
         }
+
+        /// <summary>
+        /// Gets or sets the gap between flex/grid items along both axes in pixels.
+        /// </summary>
+        public float Gap { get; set; } = 0f;
+
+        /// <summary>
+        /// Gets or sets the gap between flex/grid items along the row (vertical) axis in pixels.
+        /// </summary>
+        public float RowGap { get; set; } = 0f;
+
+        /// <summary>
+        /// Gets or sets the gap between flex/grid items along the column (horizontal) axis in pixels.
+        /// </summary>
+        public float ColumnGap { get; set; } = 0f;
+
+        /// <summary>
+        /// Gets or sets the preferred aspect ratio of the element (width / height).
+        /// </summary>
+        public float AspectRatio { get; set; } = 0f;
+
+        /// <summary>
+        /// Gets or sets the box-sizing model used to calculate element dimensions.
+        /// </summary>
+        public BoxSizing BoxSizing = BoxSizing.ContentBox;
     }
 }
