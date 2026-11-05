@@ -1,213 +1,125 @@
 # Components
 
-## Composite components
+[Home](README.md) › Components
+
+Components are the building blocks of a Rocket.NET UI. Each one describes a subtree of nodes and can hold state and effects. Components are composed of other components and of intrinsic elements (the familiar HTML tags).
+
+**On this page**
+[Defining a component](#defining-a-component) · [Props](#props) · [Composing components](#composing-components) · [Children](#children) · [Intrinsic elements](#intrinsic-elements-html-tags) · [Context providers](#context-providers) · [Resetting hooks](#resetting-hooks)
+
+## Defining a component
+
+Derive from `Component<TProps>`, where `TProps` is a plain class (usually with a parameterless constructor), and override `Render()`:
 
 ```csharp
-public class MyProps { public string Title { get; set; } }
+using Rocket.Core;
+using Rocket.Core.Components;
+using Rocket.Core.DOM;
+using static Rocket.Core.UI;
 
-public class MyComponent : Component<MyProps>
+public class UserCard : Component<UserCardProps>
 {
     public override Node Render()
     {
-        return C<Panel>(new PanelProps(), C<Text>(new TextProps { Content = Props.Title }));
+        if (Props.IsUserLoggedIn)
+        {
+            return Paragraph(new() { TextContent = "You're logged in" });
+        }
+
+        return Div(new() { ClassName = "user-card" },
+            H1(new() { TextContent = "Hello" }),
+            Paragraph(new() { TextContent = "You're not logged in" })
+        );
     }
+}
+
+public class UserCardProps
+{
+    public bool IsUserLoggedIn { get; set; } = false;
 }
 ```
 
-## Primitive (HTML) components
-
-Every supported HTML element has a strongly-typed props class (`HTML…ElementProps`)
-and a shorthand method on `UI` (also available via `using static Rocket.Core.UI;`).
-The shorthand takes the props object and any optional children:
-
-```csharp
-var button = Button(new HTMLButtonElementProps { TextContent = "Save" });
-var div = Div(new HTMLDivElementProps(), child1, child2);
-```
-
-You can still use `UI.H` with a tag name when you prefer:
-
-```csharp
-var button = H("button", new HTMLButtonElementProps { TextContent = "Save" });
-var div = H("div", new HTMLDivElementProps(), child1, child2);
-```
-
-Or use the strongly typed HTML element classes directly via `C<T>`.
-
-### Shorthand reference
-
-| Method | Tag | Props type |
-|---|---|---|
-| `Anchor` | `a` | `HTMLAnchorElementProps` |
-| `Article` | `article` | `HTMLArticleElementProps` |
-| `Aside` | `aside` | `HTMLAsideElementProps` |
-| `Audio` | `audio` | `HTMLAudioElementProps` |
-| `BlockQuote` | `blockquote` | `HTMLBlockquoteElementProps` |
-| `Bold` | `b` | `HTMLBoldElementProps` |
-| `Br` | `br` | `HTMLBrElementProps` |
-| `Button` | `button` | `HTMLButtonElementProps` |
-| `Canvas` | `canvas` | `HTMLCanvasElementProps` |
-| `Code` | `code` | `HTMLCodeElementProps` |
-| `Del` | `del` | `HTMLDelElementProps` |
-| `Details` | `details` | `HTMLDetailsElementProps` |
-| `Div` | `div` | `HTMLDivElementProps` |
-| `Em` | `em` | `HTMLEmElementProps` |
-| `Fieldset` | `fieldset` | `HTMLFieldsetElementProps` |
-| `Footer` | `footer` | `HTMLFooterElementProps` |
-| `Form` | `form` | `HTMLFormElementProps` |
-| `Header` | `header` | `HTMLHeaderElementProps` |
-| `Heading` / `H1`..`H6` | `h1`..`h6` | `HTMLHeadingElementProps` |
-| `Hr` | `hr` | `HTMLHrElementProps` |
-| `Iframe` | `iframe` | `HTMLIframeElementProps` |
-| `Img` | `img` | `HTMLImageElementProps` |
-| `Input` | `input` | `HTMLInputElementProps` |
-| `Ins` | `ins` | `HTMLInsElementProps` |
-| `Italic` | `i` | `HTMLItalicElementProps` |
-| `Label` | `label` | `HTMLLabelElementProps` |
-| `Legend` | `legend` | `HTMLLegendElementProps` |
-| `Li` | `li` | `HTMLListItemElementProps` |
-| `Main` | `main` | `HTMLMainElementProps` |
-| `Mark` | `mark` | `HTMLMarkElementProps` |
-| `Nav` | `nav` | `HTMLNavElementProps` |
-| `Ol` | `ol` | `HTMLOListElementProps` |
-| `Option` | `option` | `HTMLOptionElementProps` |
-| `Paragraph` | `p` | `HTMLParagraphElementProps` |
-| `Pre` | `pre` | `HTMLPreElementProps` |
-| `Progress` | `progress` | `HTMLProgressElementProps` |
-| `Section` | `section` | `HTMLSectionElementProps` |
-| `Select` | `select` | `HTMLSelectElementProps` |
-| `Small` | `small` | `HTMLSmallElementProps` |
-| `Span` | `span` | `HTMLSpanElementProps` |
-| `Strong` | `strong` | `HTMLStrongElementProps` |
-| `Sub` | `sub` | `HTMLSubElementProps` |
-| `Summary` | `summary` | `HTMLSummaryElementProps` |
-| `Sup` | `sup` | `HTMLSupElementProps` |
-| `Table` | `table` | `HTMLTableElementProps` |
-| `Td` | `td` | `HTMLTableCellElementProps` |
-| `Th` | `th` | `HTMLTableHeaderCellElementProps` |
-| `Time` | `time` | `HTMLTimeElementProps` |
-| `Tr` | `tr` | `HTMLTableRowElementProps` |
-| `Ul` | `ul` | `HTMLUListElementProps` |
-| `Underline` | `u` | `HTMLUnderlineElementProps` |
-| `Video` | `video` | `HTMLVideoElementProps` |
+- `Render()` returns a `Node`, or `null` to render nothing.
+- `Props` is set by the framework before rendering.
+- Hooks such as `State` and `Effect` are called at the top of `Render()`. See [Hooks](Hooks.md).
 
 ## Props
 
-Props are plain C# objects. The framework reads public fields/properties via reflection
-(cached for performance) when rendering attributes and computing styles.
+Props are ordinary C# properties on your `TProps` class. `TProps` must have a parameterless constructor (the framework creates one if needed).
+
+Pass props when building a node:
 
 ```csharp
-public class ButtonProps
-{
-    public string Text { get; set; }
-    public bool Disabled { get; set; }
-    public Action<Rocket.Core.Event> OnClick { get; set; }
-}
+Node node = C<UserCard>(new UserCardProps { IsUserLoggedIn = true });
 ```
 
-## Children
-
-Children are passed as the `params Node[]` argument:
+Or set them directly when constructing a component instance, as tests commonly do:
 
 ```csharp
-C<Panel>(new PanelProps(),
-    C<Text>(new TextProps { Content = "A" }),
-    C<Text>(new TextProps { Content = "B" })
+var card = new UserCard { Props = new UserCardProps { IsUserLoggedIn = false } };
+var node = card.Render();
+```
+
+## Composing components
+
+`C<T>(props)` produces a node for a component, so components nest inside intrinsic elements and inside each other:
+
+```csharp
+Div(new() { ClassName = "page" },
+    C<UserCard>(new UserCardProps { IsUserLoggedIn = true })
 );
 ```
 
-## Stylesheets on a component
+During rendering the executor expands each component node into a child instance and preserves its hook state between renders. See [Architecture](Architecture.md#instances) and [Rendering](Rendering.md#reconciliation-notes).
 
-Declare stylesheets directly on a component (or assembly) with `StylesheetAttribute`:
+## Children
+
+For intrinsic elements, children are passed as trailing arguments:
 
 ```csharp
-[Stylesheet("Styles/app.css")]
-public class MyApp : Component<MyAppProps>
-{
-    public override Node Render() => ...;
-}
+Div(new() { ClassName = "container" },
+    H1(new() { TextContent = "Title" }),
+    Paragraph(new() { TextContent = "Body" })
+);
 ```
 
-See [CSS & Styling](Css.md#pointing-to-a-stylesheet-with-an-attribute) for loading details.
+Components can also accept children. The base `Component<TProps>` does not declare a `Children` property by default. Add one to your props or component class, and the framework finds it by reflection and sets it from the node's children when mounting.
+
+## Intrinsic elements (HTML tags)
+
+Every HTML tag has a shorthand helper generated into the partial `UI` class: `Div`, `Span`, `Button`, `H1`…`H6`, `Paragraph`, `Input`, `Img`, `Ul`, `Li`, and many more. Each takes a props object and a `params Node[]` of children.
+
+The lower-level `H(tagName, props, children)` is also available:
+
+```csharp
+H("div", new HTMLDivElementProps { ClassName = "box" },
+    H("span", new HTMLSpanElementProps { TextContent = "hi" })
+);
+```
+
+Element props carry the attributes you expect (`ClassName`, `TextContent`, `Id`) and event handlers such as `OnClick`. Class names and ids are what [Styling](Styling.md#selectors) selectors match against. Handlers are covered in [Events](Events.md).
 
 ## Context providers
 
-Context lets a component pass a value to all descendants without prop drilling.
-
-### Using the built-in `Provider<T>`
+`Provider<T>` implements `IContextProvider` and pushes a value into the context stack for its subtree:
 
 ```csharp
-var themeCtx = CreateContext("light");
+var ctx = CreateContext("default");
 
-var app = new Provider<string>
+C<Provider<string>>(new ProviderProps<string>
 {
-    Props = new ProviderProps<string>
-    {
-        Context = themeCtx,
-        Value = "dark",
-        Children = new[]
-        {
-            C<ThemedButton>(new ThemedButtonProps())
-        }
-    }
-}.Render();
+    Context = ctx,
+    Value = "provided",
+    Children = new[] { /* subtree */ }
+});
 ```
 
-Consume it anywhere in the subtree:
+Descendants read the value with the `Context` hook. See [Context](Context.md).
 
-```csharp
-public class ThemedButton : Component<ThemedButtonProps>
-{
-    public override Node Render()
-    {
-        var theme = Context(themeCtx);   // "dark"
-        return C<Button>(new ButtonProps { Text = $"Theme: {theme}" });
-    }
-}
-```
+## Resetting hooks
 
-### Creating your own provider component
+`ResetHooks()` is called automatically at the start of each render. It resets the hook cursor while preserving stored state, so you do not normally need to call it yourself. See [Architecture](Architecture.md#hooks).
 
-Implement `IContextProvider` and push/pop in the executor's render flow
-(the executor calls these around the child render):
+---
 
-```csharp
-public class ThemeProviderProps
-{
-    public Context<string> Context { get; set; }
-    public string Value { get; set; }
-    public Node[] Children { get; set; }
-}
-
-public class ThemeProvider : Component<ThemeProviderProps>, IContextProvider
-{
-    public void PushContext()
-    {
-        if (Props?.Context != null)
-            ComponentContext.PushContext(Props.Context, Props.Value);
-    }
-
-    public void PopContext()
-    {
-        ComponentContext.PopContext();
-    }
-
-    public override Node Render()
-    {
-        if (Props?.Children == null || Props.Children.Length == 0)
-            return null;
-
-        if (Props.Children.Length == 1)
-            return Props.Children[0];
-
-        return Div(new HTMLDivElementProps(), Props.Children);
-    }
-}
-```
-
-Notes:
-- `PushContext`/`PopContext` are invoked by `VirtualDomExecutor` around the
-  rendered child, so descendants see the value.
-- Always pair push with pop (the executor does this for you).
-- Context values are looked up by reference equality of the `Context<T>` object,
-  so keep the context instance stable (create it once, e.g. as a static field).
+← [Getting started](GettingStarted.md) · Next: [Hooks →](Hooks.md)
