@@ -462,6 +462,7 @@ namespace VantaCSS.Tokeniser
                         p++;
                     }
                     bool isFunction = (p < n && css[p] == '(');
+                    bool followedByColon = (p < n && css[p] == ':') && !(p + 1 < n && css[p + 1] == ':');
 
                     TokenKind kind;
                     if (ident.StartsWith("--", StringComparison.Ordinal))
@@ -471,6 +472,10 @@ namespace VantaCSS.Tokeniser
                     else if (isFunction)
                     {
                         kind = TokenKind.Function;
+                    }
+                    else if (followedByColon)
+                    {
+                        kind = TokenKind.RuleName;
                     }
                     else if (depth == 0)
                     {
@@ -515,6 +520,19 @@ namespace VantaCSS.Tokeniser
             }
 
             tokens.Add(new Token(TokenKind.EndOfFile, n, 0));
+
+            // Populate matched source text for every token.
+            for (int t = 0; t < tokens.Count; t++)
+            {
+                var tok = tokens[t];
+                int start = (int)tok.StartIndex;
+                int len = (int)tok.Length;
+                if (start + len <= css.Length)
+                {
+                    tokens[t] = new Token(tok.Kind, start, len, css.Substring(start, len));
+                }
+            }
+
             return tokens;
         }
 
