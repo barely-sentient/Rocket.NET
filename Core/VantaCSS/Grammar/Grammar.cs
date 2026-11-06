@@ -47,7 +47,18 @@ namespace VantaCSS.Grammar
             PropertyName().As("Property"),
             Token(TokenKind.Colon),
             AnyUntil(TokenKind.Semicolon).As("Value")
-        ).Builder((string property, string value) => new CssDeclaration(property.Trim(), value.Trim()));
+        ).Builder((string property, string value) => new CssDeclaration(property.Trim(), StripImportant(value.Trim())));
+
+        // "!important" is not part of the value; keeping it made lengths such as
+        // "100vh !important" parse as plain numbers and broke keyword matches.
+        private static string StripImportant(string value)
+        {
+            int bang = value.LastIndexOf('!');
+            if (bang < 0) return value;
+            return string.Equals(value.Substring(bang + 1).Trim(), "important", StringComparison.OrdinalIgnoreCase)
+                ? value.Substring(0, bang).TrimEnd()
+                : value;
+        }
 
         // Parsing entry points
         public static Token[] Tokenise(string css)

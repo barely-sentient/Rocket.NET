@@ -115,6 +115,7 @@ img, image { display: inline; width: auto; height: auto; }
 ";
         public int ViewportWidth { get; set; }
         public int ViewportHeight { get; set; }
+        public bool HasActiveTransitions { get; set; }
         public Orientation Orientation { get; set; } = Orientation.Portrait;
 
         public VantaCssEngine()
@@ -531,6 +532,10 @@ img, image { display: inline; width: auto; height: auto; }
             {
                 if (!HasClass(className, wanted)) return false;
             }
+            foreach (var attr in compound.Attributes)
+            {
+                if (!AttributeMatches(attr, node)) return false;
+            }
             foreach (var pseudo in compound.Pseudos)
             {
                 if (!PseudoMatches(pseudo, node, engine)) return false;
@@ -548,18 +553,94 @@ img, image { display: inline; width: auto; height: auto; }
                    (sel.Length >= 3 && normTag.Contains(sel));
         }
 
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<(Type Type, string Name), System.Reflection.MemberInfo> _attrMemberCache =
+            new System.Collections.Concurrent.ConcurrentDictionary<(Type, string), System.Reflection.MemberInfo>();
+
+        private static object GetAttributeValue(Rocket.Core.DOM.Node node, string name)
+        {
+            if (node?.UntypedProps == null) return null;
+            string prop;
+            if (name == "class") prop = "ClassName";
+            else if (name == "for") prop = "HtmlFor";
+            else if (name == "id") prop = "Id";
+            else prop = name;
+            var type = node.UntypedProps.GetType();
+            var key = (type, prop);
+            if (!_attrMemberCache.TryGetValue(key, out var member))
+            {
+                var field = type.GetField(prop, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+                var property = type.GetProperty(prop, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+                member = field ?? (System.Reflection.MemberInfo)property;
+                _attrMemberCache[key] = member;
+            }
+            if (member is System.Reflection.FieldInfo fi) return fi.GetValue(node.UntypedProps);
+            if (member is System.Reflection.PropertyInfo pi && pi.CanRead) return pi.GetValue(node.UntypedProps);
+            return null;
+        }
+
+        private static bool AttributeMatches(VantaCSS.Grammar.AttributeSelector attr, Rocket.Core.DOM.Node node)
+        {
+            if (attr == null) return true;
+            object val = GetAttributeValue(node, attr.Name);
+            bool result;
+            if (attr.Op == VantaCSS.Grammar.AttrOp.Exists)
+            {
+                if (val == null) result = false;
+                else if (val is bool b) result = b;
+                else if (val is string s) result = !string.IsNullOrEmpty(s);
+                else result = true;
+            }
+            else
+            {
+                string s = val?.ToString() ?? string.Empty;
+                string v = attr.Value ?? string.Empty;
+                var cmp = attr.CaseInsensitive ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+                if (attr.Op == VantaCSS.Grammar.AttrOp.Equals) result = string.Equals(s, v, cmp);
+                else if (attr.Op == VantaCSS.Grammar.AttrOp.Word) result = WordMatch(s, v, cmp);
+                else if (attr.Op == VantaCSS.Grammar.AttrOp.Hyphen) result = string.Equals(s, v, cmp) || s.StartsWith(v + "-", cmp);
+                else if (attr.Op == VantaCSS.Grammar.AttrOp.Prefix) result = s.StartsWith(v, cmp);
+                else if (attr.Op == VantaCSS.Grammar.AttrOp.Suffix) result = s.EndsWith(v, cmp);
+                else if (attr.Op == VantaCSS.Grammar.AttrOp.Substring) result = s.IndexOf(v, cmp) >= 0;
+                else result = true;
+            }
+            return attr.Negate ? !result : result;
+        }
+
+        private static bool WordMatch(string text, string value, StringComparison cmp)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(value)) return false;
+            int i = 0, n = text.Length;
+            while (i < n)
+            {
+                while (i < n && (text[i] == ' ' || text[i] == '\t' || text[i] == '\n' || text[i] == '\r')) i++;
+                int start = i;
+                while (i < n && text[i] != ' ' && text[i] != '\t' && text[i] != '\n' && text[i] != '\r') i++;
+                if (i - start == value.Length && string.Compare(text, start, value, 0, value.Length, cmp) == 0)
+                    return true;
+            }
+            return false;
+        }
+
         private static bool HasClass(string className, string wanted)
         {
-            if (string.IsNullOrEmpty(className)) return false;
-            foreach (var cl in className.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries))
+            if (string.IsNullOrEmpty(className) || string.IsNullOrEmpty(wanted)) return false;
+            int length = className.Length;
+            int i = 0;
+            while (i < length)
             {
-                if (cl == wanted) return true;
+                while (i < length && (className[i] == ' ' || className[i] == '\t')) i++;
+                int start = i;
+                while (i < length && className[i] != ' ' && className[i] != '\t') i++;
+                if (i - start == wanted.Length &&
+                    string.CompareOrdinal(className, start, wanted, 0, wanted.Length) == 0)
+                    return true;
             }
             return false;
         }
 
         private static bool PseudoMatches(VantaCSS.Grammar.PseudoSelector pseudo, Rocket.Core.DOM.Node node, VantaCssEngine engine)
         {
+
             if (pseudo.Argument != null)
             {
                 foreach (var complex in pseudo.Argument.Items)

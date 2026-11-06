@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
+
 using VantaCSS.Tokeniser;
 
 namespace VantaCSS.Grammar
@@ -35,7 +35,7 @@ namespace VantaCSS.Grammar
     }
 
     /// <summary>
-    /// A type selector with the ids, classes and pseudo-classes that apply to one node.
+    /// A type selector with the ids, classes, attributes and pseudo-classes that apply to one node.
     /// </summary>
     public sealed class CompoundSelector
     {
@@ -55,9 +55,45 @@ namespace VantaCSS.Grammar
         public List<string> Classes { get; } = new List<string>();
 
         /// <summary>
+        /// Attribute constraints that must match.
+        /// </summary>
+        public List<AttributeSelector> Attributes { get; } = new List<AttributeSelector>();
+
+        /// <summary>
         /// Pseudo-classes that must match. Pseudo-elements that do not affect the node are omitted.
         /// </summary>
         public List<PseudoSelector> Pseudos { get; } = new List<PseudoSelector>();
+    }
+
+    /// <summary>
+    /// An attribute selector constraint such as <c>[hidden]</c> or <c>[type="text"]</c>.
+    /// </summary>
+    public sealed class AttributeSelector
+    {
+        /// <summary>The attribute (property) name, as written.</summary>
+        public string Name { get; set; } = string.Empty;
+        /// <summary>The comparison operator.</summary>
+        public AttrOp Op { get; set; } = AttrOp.Exists;
+        /// <summary>The value to compare against, or null for <see cref="AttrOp.Exists"/>.</summary>
+        public string Value { get; set; }
+        /// <summary>Whether matching is case-insensitive.</summary>
+        public bool CaseInsensitive { get; set; } = true;
+        /// <summary>Whether the match result should be negated (for !=).</summary>
+        public bool Negate { get; set; }
+    }
+
+    /// <summary>
+    /// Attribute selector comparison operators.
+    /// </summary>
+    public enum AttrOp
+    {
+        Exists,
+        Equals,
+        Word,
+        Hyphen,
+        Prefix,
+        Suffix,
+        Substring
     }
 
     /// <summary>
@@ -86,6 +122,10 @@ namespace VantaCSS.Grammar
         private static readonly ConcurrentDictionary<string, SelectorList> SelectorCache =
             new ConcurrentDictionary<string, SelectorList>(StringComparer.Ordinal);
 
+        // Bootstrap plus Font Awesome exceed 4096 distinct selectors; a smaller
+        // limit makes the cache clear mid-layout and re-parse every rule per node.
+        private const int MaxSelectorCacheEntries = 65536;
+
         /// <summary>
         /// Parses a selector list. Invalid selectors yield an empty list.
         /// </summary>
@@ -95,10 +135,14 @@ namespace VantaCSS.Grammar
         {
             if (string.IsNullOrWhiteSpace(selector)) return new SelectorList();
             if (SelectorCache.TryGetValue(selector, out var cached)) return cached;
-            if (SelectorCache.Count >= MaxCacheEntries) SelectorCache.Clear();
+            if (SelectorCache.Count >= MaxSelectorCacheEntries) SelectorCache.Clear();
 
-            var tokens = Tokenise(selector).Where(t => t.Kind != TokenKind.EndOfFile).ToArray();
-            var parsed = ParseSelectorTokens(tokens, selector) ?? new SelectorList();
+            var rawTokens = Tokenise(selector);
+            var tokens = new List<Token>(rawTokens.Length);
+            for (int i = 0; i < rawTokens.Length; i++)
+                if (rawTokens[i].Kind != TokenKind.EndOfFile) tokens.Add(rawTokens[i]);
+            var tokenArray = tokens.ToArray();
+            var parsed = ParseSelectorTokens(tokenArray, selector) ?? new SelectorList();
             SelectorCache[selector] = parsed;
             return parsed;
         }
@@ -198,10 +242,86 @@ namespace VantaCSS.Grammar
                 .As("class")
                 .Builder((Token cls) => (Action<CompoundSelector>)(compound => compound.Classes.Add(cls.Text.Substring(1))));
 
-        // Attribute selectors are accepted but not evaluated, so they never exclude a node.
+        // Attribute selectors are not evaluated yet. They must not match every element
+        // (e.g. [hidden] would hide the whole page), so the compound is marked as one
+        // that never matches.
         private static IParser AttributeSelectorParser() =>
-            Sequence(Token(TokenKind.OpenBracket), AnyUntil(TokenKind.CloseBracket), Token(TokenKind.CloseBracket))
-                .Builder<Action<CompoundSelector>>(() => compound => { });
+            Sequence(
+                Token(TokenKind.OpenBracket).As("open"),
+                AnyUntil(TokenKind.CloseBracket).As("args"),
+                Token(TokenKind.CloseBracket).As("close"))
+            .Builder<Token, Token[], Token, Action<CompoundSelector>>((open, args, close) =>
+            {
+                var attr = ParseAttribute(args);
+                if (attr == null) return (compound) => { };
+                return (compound) => compound.Attributes.Add(attr);
+            });
+
+        private static AttributeSelector ParseAttribute(Token[] args)
+        {
+            string raw = string.Empty;
+            if (args != null)
+            {
+                var sb = new System.Text.StringBuilder();
+                for (int i = 0; i < args.Length; i++) sb.Append(args[i].Text ?? string.Empty);
+                raw = sb.ToString().Trim();
+            }
+            if (string.IsNullOrEmpty(raw)) return null;
+
+            bool caseInsensitive = true;
+            if (raw.Length >= 2 && raw[raw.Length - 2] == ' ')
+            {
+                char flag = raw[raw.Length - 1];
+                if (flag == 'i' || flag == 'I') { caseInsensitive = true; raw = raw.Substring(0, raw.Length - 2).Trim(); }
+                else if (flag == 's' || flag == 'S') { caseInsensitive = false; raw = raw.Substring(0, raw.Length - 2).Trim(); }
+            }
+
+            string[] ops = { "!=", "~=", "|=", "^=", "$=", "*=", "=" };
+            string op = null; int opIndex = -1; int opLen = 0;
+            for (int i = 0; i < raw.Length; i++)
+            {
+                if (raw[i] == ' ' || raw[i] == '\t') continue;
+                if (raw[i] == '!' || raw[i] == '~' || raw[i] == '|' || raw[i] == '^' ||
+                    raw[i] == '$' || raw[i] == '*' || raw[i] == '=')
+                {
+                    foreach (var candidate in ops)
+                    {
+                        if (i + candidate.Length <= raw.Length &&
+                            string.Compare(raw, i, candidate, 0, candidate.Length, StringComparison.Ordinal) == 0)
+                        { op = candidate; opIndex = i; opLen = candidate.Length; break; }
+                    }
+                    if (op != null) break;
+                }
+            }
+
+            if (op == null)
+                return new AttributeSelector { Name = raw, Op = AttrOp.Exists, CaseInsensitive = caseInsensitive };
+
+            string name = raw.Substring(0, opIndex).Trim();
+            string value = raw.Substring(opIndex + opLen).Trim();
+            if (value.Length >= 2 && ((value[0] == '"' && value[value.Length - 1] == '"') ||
+                                      (value[0] == '\'' && value[value.Length - 1] == '\'')))
+                value = value.Substring(1, value.Length - 2);
+
+            AttrOp attrOp;
+            if (op == "~=") attrOp = AttrOp.Word;
+            else if (op == "|=") attrOp = AttrOp.Hyphen;
+            else if (op == "^=") attrOp = AttrOp.Prefix;
+            else if (op == "$=") attrOp = AttrOp.Suffix;
+            else if (op == "*=") attrOp = AttrOp.Substring;
+            else attrOp = AttrOp.Equals;
+
+            return new AttributeSelector
+            {
+                Name = name,
+                Op = attrOp,
+                Value = value,
+                CaseInsensitive = caseInsensitive,
+                Negate = op == "!="
+            };
+        }
+
+
 
         private static IParser PseudoSelectorParser() =>
             Sequence(
