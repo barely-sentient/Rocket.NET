@@ -43,13 +43,16 @@ namespace Rocket.Core
             }
             if (hook.Reducer == null) hook.Reducer = reducer;
 
-            Action<TAction> dispatch = action =>
+            if (hook.Dispatch == null)
             {
-                hook.State = hook.Reducer(hook.State, action);
-                ComponentContext.RequestUpdate(instance);
-            };
+                hook.Dispatch = action =>
+                {
+                    hook.State = hook.Reducer(hook.State, action);
+                    ComponentContext.RequestUpdate(instance);
+                };
+            }
 
-            return (hook.State, dispatch);
+            return (hook.State, hook.Dispatch);
         }
 
         /// <summary>
@@ -83,5 +86,7 @@ namespace Rocket.Core
         public TState State;
         /// <summary>The reducer function.</summary>
         public Func<TState, TAction, TState> Reducer;
+        /// <summary>The dispatch delegate, created once per hook slot.</summary>
+        public Action<TAction> Dispatch;
     }
 }

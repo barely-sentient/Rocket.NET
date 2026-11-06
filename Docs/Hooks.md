@@ -63,7 +63,7 @@ Effect(() =>
 - Pass `null` (or omit) the dependency array to run once on mount.
 - The effect may return a cleanup delegate.
 - Cleanup delegates are invoked when the instance unmounts. See [Rendering](Rendering.md#reconciliation-notes).
-- `SideEffect`, `LayoutEffect`, and `InsertionEffect` are aliases.
+- `Effect` is an alias for `SideEffect`.
 
 ## Memo
 

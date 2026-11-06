@@ -29,7 +29,6 @@ namespace Rocket.Core
             public PropertyInfo PropsProperty;
             public PropertyInfo ChildrenProperty;
             public MethodInfo RenderMethod;
-            public MethodInfo ResetHooksMethod;
         }
 
         private static readonly ConcurrentDictionary<Type, ComponentMeta> _metaCache =
@@ -180,25 +179,10 @@ namespace Rocket.Core
             _renderer.Draw(nodeToDraw);
         }
 
-        public void Render<TProps>(Node<TProps> rootNode) where TProps : new()
-        {
-            Render((Node)rootNode);
-        }
-
-        public void Render<TProps>(Node<TProps> rootNode, int viewportWidth, int viewportHeight, VantaCSS.Orientation orientation) where TProps : new()
-        {
-            Render((Node)rootNode, viewportWidth, viewportHeight, orientation);
-        }
-
         public void Render(Node rootNode, VantaCSS.Viewport viewport)
         {
             if (viewport == null) Render(rootNode);
             else Render(rootNode, viewport.Width, viewport.Height, viewport.Orientation);
-        }
-
-        public void Render<TProps>(Node<TProps> rootNode, VantaCSS.Viewport viewport) where TProps : new()
-        {
-            Render((Node)rootNode, viewport);
         }
 
         /// <summary>
@@ -258,7 +242,6 @@ namespace Rocket.Core
                 instance.ResetHooks();
                 Node renderedNode = meta.RenderMethod != null ? meta.RenderMethod.Invoke(component, null) as Node : RenderComponent(component);
                 ComponentContext.CurrentInstance = null;
-                // (debug logging removed for performance)
 
                 bool isProvider = component is IContextProvider;
                 if (isProvider) ((IContextProvider)component).PushContext();
@@ -429,28 +412,14 @@ namespace Rocket.Core
                     meta.PropsProperty = t.GetProperty("Props");
                     meta.ChildrenProperty = t.GetProperty("Children");
                     meta.RenderMethod = t.GetMethod("Render", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    meta.ResetHooksMethod = t.GetMethod("ResetHooks", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 }
                 return meta;
             });
         }
 
         /// <summary>
-        /// Returns true if the component type is composite (inherits from Component<T>).
-        /// </summary>
-        private static bool IsComposite(Type type)
-        {
-            return GetMeta(type).IsComposite;
-        }
-
-        /// <summary>
         /// Casts props to the component's expected prop type.
         /// </summary>
-        private static object CastProps(Type componentType, object props)
-        {
-            return CastProps(GetMeta(componentType), props);
-        }
-
         private static object CastProps(ComponentMeta meta, object props)
         {
             Type propsType = meta.PropsType;
@@ -470,11 +439,6 @@ namespace Rocket.Core
             if (property != null && property.CanWrite) property.SetValue(component, props);
         }
 
-        private static void SetComponentProps(object component, object props)
-        {
-            SetComponentProps(component, GetMeta(component.GetType()), props);
-        }
-
         /// <summary>
         /// Sets component children from a Node array.
         /// </summary>
@@ -483,22 +447,6 @@ namespace Rocket.Core
             if (component == null) return;
             PropertyInfo property = meta.ChildrenProperty ?? component.GetType().GetProperty("Children");
             if (property != null && property.CanWrite) property.SetValue(component, children);
-        }
-
-        private static void SetComponentChildren(object component, Node[] children)
-        {
-            SetComponentChildren(component, GetMeta(component.GetType()), children);
-        }
-
-        /// <summary>
-        /// Resets component hooks for a new render cycle.
-        /// </summary>
-        private static void ResetComponentHooks(object component)
-        {
-            if (component == null) return;
-            var meta = GetMeta(component.GetType());
-            MethodInfo method = meta.ResetHooksMethod ?? component.GetType().GetMethod("ResetHooks", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            if (method != null) method.Invoke(component, null);
         }
 
         /// <summary>
@@ -530,70 +478,80 @@ namespace Rocket.Core
         /// Deep-clones a node tree so the original template stays unmutated
         /// across mount/refresh cycles.
         /// </summary>
+        private sealed class CloneInfo
+        {
+            public PropertyInfo PropsProperty;
+            public Type PropsType;
+            public ConstructorInfo Constructor;
+            public PropertyInfo[] WritableProperties;
+            public FieldInfo[] Fields;
+        }
+
+        private static readonly ConcurrentDictionary<Type, CloneInfo> _cloneCache = new ConcurrentDictionary<Type, CloneInfo>();
+
+        private static CloneInfo GetCloneInfo(Type type)
+        {
+            return _cloneCache.GetOrAdd(type, t =>
+            {
+                if (!(t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Node<>))) return null;
+
+                var propsType = t.GetGenericArguments()[0];
+                var writable = new List<PropertyInfo>();
+                foreach (var pi in propsType.GetProperties())
+                {
+                    if (pi.CanWrite && pi.GetIndexParameters().Length == 0) writable.Add(pi);
+                }
+                return new CloneInfo
+                {
+                    PropsProperty = t.GetProperty("Props"),
+                    PropsType = propsType,
+                    Constructor = t.GetConstructor(new[] { typeof(Type), propsType, typeof(Node[]) }),
+                    WritableProperties = writable.ToArray(),
+                    Fields = propsType.GetFields()
+                };
+            });
+        }
+
         private static Node CloneNode(Node node)
         {
             if (node == null) return null;
-            var type = node.GetType();
-            Node[] children = (node.Children ?? Array.Empty<Node>())
-                .Select(CloneNode)
-                .ToArray();
 
-            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Node<>))
+            Node[] source = node.Children ?? Array.Empty<Node>();
+            var children = new Node[source.Length];
+            for (int i = 0; i < source.Length; i++) children[i] = CloneNode(source[i]);
+
+            var info = GetCloneInfo(node.GetType());
+            if (info?.Constructor != null)
             {
-                var propsType = type.GetGenericArguments()[0];
-                var propsProp = type.GetProperty("Props");
-                object props = propsProp != null ? propsProp.GetValue(node) : null;
+                object props = info.PropsProperty?.GetValue(node);
                 object propsClone = props;
                 if (props != null)
                 {
-                    propsClone = Activator.CreateInstance(propsType);
-                    foreach (var pi in propsType.GetProperties())
-                    {
-                        if (pi.CanWrite) pi.SetValue(propsClone, pi.GetValue(props));
-                    }
-                    foreach (var fi in propsType.GetFields())
-                    {
-                        fi.SetValue(propsClone, fi.GetValue(props));
-                    }
+                    propsClone = Activator.CreateInstance(info.PropsType);
+                    foreach (var pi in info.WritableProperties) pi.SetValue(propsClone, pi.GetValue(props));
+                    foreach (var fi in info.Fields) fi.SetValue(propsClone, fi.GetValue(props));
                 }
-                var ctor = type.GetConstructor(new[] { typeof(Type), propsType, typeof(Node[]) });
-                if (ctor != null)
-                {
-                    return (Node)ctor.Invoke(new object[] { node.Type, propsClone, children });
-                }
+                return (Node)info.Constructor.Invoke(new object[] { node.Type, propsClone, children });
             }
 
             return new Node(node.Type, children);
         }
 
         /// <summary>
-        /// Unmounts a component instance and its children.
+        /// Unmounts a component instance and its children, running side-effect cleanups.
         /// </summary>
         private static void Unmount(Instance instance)
         {
             if (instance == null) return;
 
-            if (IsComposite(instance.ComponentType) && instance.ComponentInstance != null)
+            foreach (object hook in instance.Hooks)
             {
-                try
+                if (hook is SideEffectState state && state.Cleanup != null)
                 {
-                    PropertyInfo hooksProperty = instance.ComponentInstance.GetType().GetProperty("Hooks", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (hooksProperty != null)
-                    {
-                        System.Collections.IEnumerable hooks = hooksProperty.GetValue(instance.ComponentInstance) as System.Collections.IEnumerable;
-                        if (hooks != null)
-                        {
-                            foreach (object hook in hooks)
-                            {
-                                if (hook is SideEffectState ses)
-                                {
-                                    try { ses.Cleanup?.Invoke(); } catch { }
-                                }
-                            }
-                        }
-                    }
+                    var cleanup = state.Cleanup;
+                    state.Cleanup = null;
+                    try { cleanup(); } catch { }
                 }
-                catch { }
             }
 
             if (instance.Child != null) Unmount(instance.Child);

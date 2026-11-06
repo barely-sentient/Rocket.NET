@@ -14,15 +14,6 @@ namespace Tests
             Assert.False(ev.IsPropagationStopped);
             ev.StopPropagation();
             Assert.True(ev.IsPropagationStopped);
-            Assert.True(ev.PropagationStopped);
-        }
-
-        [Fact]
-        public void PreventPropagation_AliasSetsFlag()
-        {
-            var ev = new Rocket.Core.Event();
-            ev.PreventPropagation();
-            Assert.True(ev.IsPropagationStopped);
         }
 
         [Fact]

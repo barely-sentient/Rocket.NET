@@ -15,7 +15,6 @@ namespace Rocket.Core
         private bool _defaultPrevented;
 
         public bool IsPropagationStopped => _propagationStopped;
-        public bool PropagationStopped => _propagationStopped;
         public bool DefaultPrevented => _defaultPrevented;
 
         public void StopPropagation()
@@ -23,23 +22,10 @@ namespace Rocket.Core
             _propagationStopped = true;
         }
 
-        /// <summary>
-        /// Alias for <see cref="StopPropagation"/>.
-        /// </summary>
-        public void PreventPropagation()
-        {
-            StopPropagation();
-        }
-
         public void PreventDefault()
         {
             _defaultPrevented = true;
         }
-
-        /// <summary>
-        /// Indicates whether propagation has been stopped.
-        /// </summary>
-        public bool IsPropagationStoppedOrPrevented => _propagationStopped;
     }
 
     /// <summary>
@@ -81,12 +67,4 @@ namespace Rocket.Core
         public string Data { get; set; }
         public object Value { get; set; }
     }
-}
-
-namespace Rocket.Core.DOM
-{
-    /// <summary>
-    /// DOM-namespace alias for <see cref="Rocket.Core.Event"/>.
-    /// </summary>
-    public class Event : Rocket.Core.Event { }
 }

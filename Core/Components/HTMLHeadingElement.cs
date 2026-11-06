@@ -39,34 +39,12 @@ namespace Rocket.Core
         }
 
         /// <summary>
-        /// Shorthand method to render a Heading1 element
-        /// </summary>
-        /// <param name="props"></param>
-        /// <param name="children"></param>
-        /// <returns></returns>
-        public static Node<HTMLHeadingElementProps> Heading1(HTMLHeadingElementProps props, params Node[] children)
-        {
-            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
-        }
-
-        /// <summary>
         /// Shorthand method to render a H2 element
         /// </summary>
         /// <param name="props"></param>
         /// <param name="children"></param>
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> H2(HTMLHeadingElementProps props, params Node[] children)
-        {
-            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
-        }
-
-        /// <summary>
-        /// Shorthand method to render a Heading2 element
-        /// </summary>
-        /// <param name="props"></param>
-        /// <param name="children"></param>
-        /// <returns></returns>
-        public static Node<HTMLHeadingElementProps> Heading2(HTMLHeadingElementProps props, params Node[] children)
         {
             return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
@@ -83,34 +61,12 @@ namespace Rocket.Core
         }
 
         /// <summary>
-        /// Shorthand method to render a Heading3 element
-        /// </summary>
-        /// <param name="props"></param>
-        /// <param name="children"></param>
-        /// <returns></returns>
-        public static Node<HTMLHeadingElementProps> Heading3(HTMLHeadingElementProps props, params Node[] children)
-        {
-            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
-        }
-
-        /// <summary>
         /// Shorthand method to render a H4 element
         /// </summary>
         /// <param name="props"></param>
         /// <param name="children"></param>
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> H4(HTMLHeadingElementProps props, params Node[] children)
-        {
-            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
-        }
-
-        /// <summary>
-        /// Shorthand method to render a Heading4 element
-        /// </summary>
-        /// <param name="props"></param>
-        /// <param name="children"></param>
-        /// <returns></returns>
-        public static Node<HTMLHeadingElementProps> Heading4(HTMLHeadingElementProps props, params Node[] children)
         {
             return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }
@@ -127,34 +83,12 @@ namespace Rocket.Core
         }
 
         /// <summary>
-        /// Shorthand method to render a Heading5 element
-        /// </summary>
-        /// <param name="props"></param>
-        /// <param name="children"></param>
-        /// <returns></returns>
-        public static Node<HTMLHeadingElementProps> Heading5(HTMLHeadingElementProps props, params Node[] children)
-        {
-            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
-        }
-
-        /// <summary>
         /// Shorthand method to render a H6 element
         /// </summary>
         /// <param name="props"></param>
         /// <param name="children"></param>
         /// <returns></returns>
         public static Node<HTMLHeadingElementProps> H6(HTMLHeadingElementProps props, params Node[] children)
-        {
-            return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
-        }
-
-        /// <summary>
-        /// Shorthand method to render a Heading6 element
-        /// </summary>
-        /// <param name="props"></param>
-        /// <param name="children"></param>
-        /// <returns></returns>
-        public static Node<HTMLHeadingElementProps> Heading6(HTMLHeadingElementProps props, params Node[] children)
         {
             return new Node<HTMLHeadingElementProps>(typeof(HTMLHeadingElement), props, children);
         }

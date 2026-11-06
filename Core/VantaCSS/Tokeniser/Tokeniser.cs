@@ -357,9 +357,15 @@ namespace VantaCSS.Tokeniser
                             i = save;
                         }
                     }
-                    bool isFloat = css.Substring(start, i - start).IndexOf('.') >= 0 ||
-                                   css.Substring(start, i - start).IndexOf('e') >= 0 ||
-                                   css.Substring(start, i - start).IndexOf('E') >= 0;
+                    bool isFloat = false;
+                    for (int k = start; k < i; k++)
+                    {
+                        if (css[k] == '.' || css[k] == 'e' || css[k] == 'E')
+                        {
+                            isFloat = true;
+                            break;
+                        }
+                    }
 
                     // unit
                     int unitStart = i;

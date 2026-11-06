@@ -8,8 +8,7 @@ namespace Rocket.Core.Components
 
     public class HTMLAnchorElementProps : IntrinsicAttributes
     {
-        public string href { get; set; }
-        public string Href { get => href; set => href = value; }
+        public string Href { get; set; }
         public string Target { get; set; }
         public string Rel { get; set; }
         public string Download { get; set; }

@@ -3,7 +3,6 @@ using Rocket.Core.DOM;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Linq;
 
 namespace VantaCSS
@@ -16,10 +15,6 @@ namespace VantaCSS
         private bool _layoutInProgress;
 
         public Dictionary<Node, LayoutBox> Layouts { get; } = new Dictionary<Node, LayoutBox>();
-        public Dictionary<Node, LayoutBox> LayoutBoxes { get => Layouts; }
-        public Dictionary<Node, LayoutBox> Boxes { get => Layouts; }
-        public Dictionary<Node, LayoutBox> ComputedLayouts { get => Layouts; }
-        public Dictionary<Node, LayoutBox> LayoutResults { get => Layouts; }
 
         // ---------------------------------------------------------------
         // Core layout entry points
@@ -96,93 +91,6 @@ namespace VantaCSS
             return CalculateLayout(root, width, height, orientation, timeMs / 1000.0);
         }
 
-        // Alias names
-        public LayoutBox ComputeLayout(Node root) => CalculateLayout(root);
-        public LayoutBox ComputeLayout(Node root, double time) => CalculateLayout(root, time);
-        public LayoutBox ComputeLayout(Node root, int width, int height) => CalculateLayout(root, width, height);
-        public LayoutBox ComputeLayout(Node root, int width, int height, Orientation orientation) => CalculateLayout(root, width, height, orientation);
-        public LayoutBox ComputeLayout(Node root, int width, int height, Orientation orientation, double time) => CalculateLayout(root, width, height, orientation, time);
-        public LayoutBox ComputeLayout(Node root, int width, int height, Orientation orientation, TimeSpan time) => CalculateLayout(root, width, height, orientation, time);
-        public LayoutBox ComputeLayout(Node root, Viewport viewport) => CalculateLayout(root, viewport);
-        public LayoutBox ComputeLayout(Node root, Viewport viewport, double time) => CalculateLayout(root, viewport, time);
-
-        public LayoutBox Layout(Node root) => CalculateLayout(root);
-        public LayoutBox Layout(Node root, double time) => CalculateLayout(root, time);
-        public LayoutBox Layout(Node root, int width, int height) => CalculateLayout(root, width, height);
-        public LayoutBox Layout(Node root, int width, int height, Orientation orientation) => CalculateLayout(root, width, height, orientation);
-        public LayoutBox Layout(Node root, int width, int height, Orientation orientation, double time) => CalculateLayout(root, width, height, orientation, time);
-        public LayoutBox Layout(Node root, Viewport viewport) => CalculateLayout(root, viewport);
-
-        public void ApplyLayout(Node root) => CalculateLayout(root);
-        public void ApplyLayout(Node root, double time) => CalculateLayout(root, time);
-        public void ApplyLayout(Node root, int width, int height) => CalculateLayout(root, width, height);
-        public void ApplyLayout(Node root, int width, int height, Orientation orientation) => CalculateLayout(root, width, height, orientation);
-        public void ApplyLayout(Node root, int width, int height, Orientation orientation, double time) => CalculateLayout(root, width, height, orientation, time);
-        public void ApplyLayout(Node root, Viewport viewport) => CalculateLayout(root, viewport);
-
-        public void ApplyLayouts(Node root) => ApplyLayout(root);
-        public void ApplyLayouts(Node root, double time) => ApplyLayout(root, time);
-        public void ApplyLayouts(Node root, int width, int height) => ApplyLayout(root, width, height);
-        public void ApplyLayouts(Node root, int width, int height, Orientation orientation) => ApplyLayout(root, width, height, orientation);
-        public void ApplyLayouts(Node root, int width, int height, Orientation orientation, double time) => ApplyLayout(root, width, height, orientation, time);
-        public void ApplyLayouts(Node root, Viewport viewport) => ApplyLayout(root, viewport);
-
-        public void PerformLayout(Node root) => ApplyLayout(root);
-        public void PerformLayout(Node root, int width, int height) => ApplyLayout(root, width, height);
-        public void PerformLayout(Node root, int width, int height, Orientation orientation) => ApplyLayout(root, width, height, orientation);
-        public void PerformLayout(Node root, int width, int height, Orientation orientation, double time) => ApplyLayout(root, width, height, orientation, time);
-        public void PerformLayout(Node root, Viewport viewport) => ApplyLayout(root, viewport);
-
-        public void DoLayout(Node root) => ApplyLayout(root);
-        public void DoLayout(Node root, int width, int height) => ApplyLayout(root, width, height);
-        public void DoLayout(Node root, int width, int height, Orientation orientation) => ApplyLayout(root, width, height, orientation);
-        public void DoLayout(Node root, int width, int height, Orientation orientation, double time) => ApplyLayout(root, width, height, orientation, time);
-        public void DoLayout(Node root, Viewport viewport) => ApplyLayout(root, viewport);
-
-        public void RunLayout(Node root) => ApplyLayout(root);
-        public void RunLayout(Node root, int width, int height) => ApplyLayout(root, width, height);
-        public void RunLayout(Node root, int width, int height, Orientation orientation) => ApplyLayout(root, width, height, orientation);
-        public void RunLayout(Node root, int width, int height, Orientation orientation, double time) => ApplyLayout(root, width, height, orientation, time);
-        public void RunLayout(Node root, Viewport viewport) => ApplyLayout(root, viewport);
-
-        public void UpdateLayout(Node root) => ApplyLayout(root);
-        public void UpdateLayout(Node root, int width, int height) => ApplyLayout(root, width, height);
-        public void UpdateLayout(Node root, int width, int height, Orientation orientation) => ApplyLayout(root, width, height, orientation);
-        public void UpdateLayout(Node root, int width, int height, Orientation orientation, double time) => ApplyLayout(root, width, height, orientation, time);
-        public void UpdateLayout(Node root, Viewport viewport) => ApplyLayout(root, viewport);
-
-        public void ArrangeLayout(Node root) => ApplyLayout(root);
-        public void ArrangeLayout(Node root, int width, int height) => ApplyLayout(root, width, height);
-        public void ArrangeLayout(Node root, int width, int height, Orientation orientation) => ApplyLayout(root, width, height, orientation);
-        public void ArrangeLayout(Node root, int width, int height, Orientation orientation, double time) => ApplyLayout(root, width, height, orientation, time);
-        public void ArrangeLayout(Node root, Viewport viewport) => ApplyLayout(root, viewport);
-
-        public void MeasureLayout(Node root) => ApplyLayout(root);
-        public void MeasureLayout(Node root, int width, int height) => ApplyLayout(root, width, height);
-        public void MeasureLayout(Node root, int width, int height, Orientation orientation) => ApplyLayout(root, width, height, orientation);
-        public void MeasureLayout(Node root, int width, int height, Orientation orientation, double time) => ApplyLayout(root, width, height, orientation, time);
-        public void MeasureLayout(Node root, Viewport viewport) => ApplyLayout(root, viewport);
-
-        // Dictionary-returning variants.
-        public Dictionary<Node, LayoutBox> CalculateLayouts(Node root) { CalculateLayout(root); return Layouts; }
-        public Dictionary<Node, LayoutBox> CalculateLayouts(Node root, double time) { CalculateLayout(root, time); return Layouts; }
-        public Dictionary<Node, LayoutBox> CalculateLayouts(Node root, int width, int height) { CalculateLayout(root, width, height); return Layouts; }
-        public Dictionary<Node, LayoutBox> CalculateLayouts(Node root, int width, int height, Orientation orientation) { CalculateLayout(root, width, height, orientation); return Layouts; }
-        public Dictionary<Node, LayoutBox> CalculateLayouts(Node root, int width, int height, Orientation orientation, double time) { CalculateLayout(root, width, height, orientation, time); return Layouts; }
-        public Dictionary<Node, LayoutBox> CalculateLayouts(Node root, Viewport viewport) { CalculateLayout(root, viewport); return Layouts; }
-
-        public Dictionary<Node, LayoutBox> ComputeLayouts(Node root) => CalculateLayouts(root);
-        public Dictionary<Node, LayoutBox> ComputeLayouts(Node root, double time) => CalculateLayouts(root, time);
-        public Dictionary<Node, LayoutBox> ComputeLayouts(Node root, int width, int height) => CalculateLayouts(root, width, height);
-        public Dictionary<Node, LayoutBox> ComputeLayouts(Node root, int width, int height, Orientation orientation) => CalculateLayouts(root, width, height, orientation);
-        public Dictionary<Node, LayoutBox> ComputeLayouts(Node root, int width, int height, Orientation orientation, double time) => CalculateLayouts(root, width, height, orientation, time);
-        public Dictionary<Node, LayoutBox> ComputeLayouts(Node root, Viewport viewport) => CalculateLayouts(root, viewport);
-
-        public Dictionary<Node, LayoutBox> GetLayouts(Node root) => CalculateLayouts(root);
-        public Dictionary<Node, LayoutBox> GetLayouts(Node root, int width, int height) => CalculateLayouts(root, width, height);
-        public Dictionary<Node, LayoutBox> GetLayouts(Node root, int width, int height, Orientation orientation) => CalculateLayouts(root, width, height, orientation);
-        public Dictionary<Node, LayoutBox> GetLayouts(Node root, Viewport viewport) => CalculateLayouts(root, viewport);
-
         // Single-node layout lookup.
         public LayoutBox GetLayout(Node node)
         {
@@ -215,78 +123,6 @@ namespace VantaCSS
             return root?.Layout;
         }
 
-        // Extra alias method names.
-        public LayoutBox Arrange(Node root) => CalculateLayout(root);
-        public LayoutBox Arrange(Node root, int width, int height) => CalculateLayout(root, width, height);
-        public LayoutBox Arrange(Node root, int width, int height, Orientation orientation) => CalculateLayout(root, width, height, orientation);
-        public LayoutBox Arrange(Node root, int width, int height, Orientation orientation, double time) => CalculateLayout(root, width, height, orientation, time);
-        public LayoutBox Arrange(Node root, Viewport viewport) => CalculateLayout(root, viewport);
-
-        public LayoutBox Measure(Node root) => CalculateLayout(root);
-        public LayoutBox Measure(Node root, int width, int height) => CalculateLayout(root, width, height);
-        public LayoutBox Measure(Node root, int width, int height, Orientation orientation) => CalculateLayout(root, width, height, orientation);
-        public LayoutBox Measure(Node root, int width, int height, Orientation orientation, double time) => CalculateLayout(root, width, height, orientation, time);
-        public LayoutBox Measure(Node root, Viewport viewport) => CalculateLayout(root, viewport);
-
-        public LayoutBox Reflow(Node root) => CalculateLayout(root);
-        public LayoutBox Reflow(Node root, int width, int height) => CalculateLayout(root, width, height);
-        public LayoutBox Reflow(Node root, int width, int height, Orientation orientation) => CalculateLayout(root, width, height, orientation);
-        public LayoutBox Reflow(Node root, int width, int height, Orientation orientation, double time) => CalculateLayout(root, width, height, orientation, time);
-        public LayoutBox Reflow(Node root, Viewport viewport) => CalculateLayout(root, viewport);
-
-        public LayoutBox ReflowLayout(Node root) => CalculateLayout(root);
-        public LayoutBox ReflowLayout(Node root, int width, int height) => CalculateLayout(root, width, height);
-        public LayoutBox ReflowLayout(Node root, int width, int height, Orientation orientation) => CalculateLayout(root, width, height, orientation);
-        public LayoutBox ReflowLayout(Node root, int width, int height, Orientation orientation, double time) => CalculateLayout(root, width, height, orientation, time);
-        public LayoutBox ReflowLayout(Node root, Viewport viewport) => CalculateLayout(root, viewport);
-
-        public LayoutBox SolveLayout(Node root) => CalculateLayout(root);
-        public LayoutBox SolveLayout(Node root, int width, int height) => CalculateLayout(root, width, height);
-        public LayoutBox SolveLayout(Node root, int width, int height, Orientation orientation) => CalculateLayout(root, width, height, orientation);
-        public LayoutBox SolveLayout(Node root, int width, int height, Orientation orientation, double time) => CalculateLayout(root, width, height, orientation, time);
-        public LayoutBox SolveLayout(Node root, Viewport viewport) => CalculateLayout(root, viewport);
-
-        public LayoutBox BuildLayout(Node root) => CalculateLayout(root);
-        public LayoutBox BuildLayout(Node root, int width, int height) => CalculateLayout(root, width, height);
-        public LayoutBox BuildLayout(Node root, int width, int height, Orientation orientation) => CalculateLayout(root, width, height, orientation);
-        public LayoutBox BuildLayout(Node root, int width, int height, Orientation orientation, double time) => CalculateLayout(root, width, height, orientation, time);
-        public LayoutBox BuildLayout(Node root, Viewport viewport) => CalculateLayout(root, viewport);
-
-        public LayoutBox LayoutTree(Node root) => CalculateLayout(root);
-        public LayoutBox LayoutTree(Node root, int width, int height) => CalculateLayout(root, width, height);
-        public LayoutBox LayoutTree(Node root, int width, int height, Orientation orientation) => CalculateLayout(root, width, height, orientation);
-        public LayoutBox LayoutTree(Node root, int width, int height, Orientation orientation, double time) => CalculateLayout(root, width, height, orientation, time);
-        public LayoutBox LayoutTree(Node root, Viewport viewport) => CalculateLayout(root, viewport);
-
-        public LayoutBox ComputeTree(Node root) => CalculateLayout(root);
-        public LayoutBox ComputeTree(Node root, int width, int height) => CalculateLayout(root, width, height);
-        public LayoutBox ComputeTree(Node root, int width, int height, Orientation orientation) => CalculateLayout(root, width, height, orientation);
-        public LayoutBox ComputeTree(Node root, int width, int height, Orientation orientation, double time) => CalculateLayout(root, width, height, orientation, time);
-        public LayoutBox ComputeTree(Node root, Viewport viewport) => CalculateLayout(root, viewport);
-
-        public LayoutBox CalculateTree(Node root) => CalculateLayout(root);
-        public LayoutBox CalculateTree(Node root, int width, int height) => CalculateLayout(root, width, height);
-        public LayoutBox CalculateTree(Node root, int width, int height, Orientation orientation) => CalculateLayout(root, width, height, orientation);
-        public LayoutBox CalculateTree(Node root, int width, int height, Orientation orientation, double time) => CalculateLayout(root, width, height, orientation, time);
-        public LayoutBox CalculateTree(Node root, Viewport viewport) => CalculateLayout(root, viewport);
-
-        public LayoutBox CalculateBounds(Node root) => CalculateLayout(root);
-        public LayoutBox CalculateBounds(Node root, int width, int height) => CalculateLayout(root, width, height);
-        public LayoutBox CalculateBounds(Node root, int width, int height, Orientation orientation) => CalculateLayout(root, width, height, orientation);
-        public LayoutBox CalculateBounds(Node root, int width, int height, Orientation orientation, double time) => CalculateLayout(root, width, height, orientation, time);
-        public LayoutBox CalculateBounds(Node root, Viewport viewport) => CalculateLayout(root, viewport);
-
-        public LayoutBox ComputeBounds(Node root) => CalculateLayout(root);
-        public LayoutBox ComputeBounds(Node root, int width, int height) => CalculateLayout(root, width, height);
-        public LayoutBox ComputeBounds(Node root, int width, int height, Orientation orientation) => CalculateLayout(root, width, height, orientation);
-        public LayoutBox ComputeBounds(Node root, int width, int height, Orientation orientation, double time) => CalculateLayout(root, width, height, orientation, time);
-        public LayoutBox ComputeBounds(Node root, Viewport viewport) => CalculateLayout(root, viewport);
-
-        public LayoutBox GetLayoutBox(Node node) => GetLayout(node);
-        public LayoutBox GetLayoutBox(Node root, int width, int height) => GetLayout(root, width, height);
-        public LayoutBox GetLayoutBox(Node root, int width, int height, Orientation orientation) => GetLayout(root, width, height, orientation);
-        public LayoutBox GetLayoutBox(Node root, int width, int height, Orientation orientation, double time) => GetLayout(root, width, height, orientation, time);
-        public LayoutBox GetLayoutBox(Node root, Viewport viewport) => GetLayout(root, viewport);
 
         // ---------------------------------------------------------------
         // Recursive layout implementation
@@ -530,10 +366,14 @@ namespace VantaCSS
                         {
                             double lineW = 0;
                             lines = 1;
+                            double wordSpacing = ParseLen(GetStyle(style, "word-spacing"), contentWidth, vw, vh);
+                            if (double.IsNaN(wordSpacing)) wordSpacing = 0;
+                            double letterSpacing = ParseLen(GetStyle(style, "letter-spacing"), contentWidth, vw, vh);
+                            if (double.IsNaN(letterSpacing)) letterSpacing = 0;
                             for (int i = 0; i < textContent.Length; i++)
                             {
                                 char c = textContent[i];
-                                double cw = (c == ' ') ? (fs * 0.25 + (double.IsNaN(ParseLen(GetStyle(style, "word-spacing"), contentWidth, vw, vh)) ? 0 : ParseLen(GetStyle(style, "word-spacing"), contentWidth, vw, vh))) : (fs * 0.5 + (double.IsNaN(ParseLen(GetStyle(style, "letter-spacing"), contentWidth, vw, vh)) ? 0 : ParseLen(GetStyle(style, "letter-spacing"), contentWidth, vw, vh)));
+                                double cw = (c == ' ') ? fs * 0.25 + wordSpacing : fs * 0.5 + letterSpacing;
                                 if (lineW + cw > contentWidth && lineW > 0)
                                 {
                                     lines++;
@@ -597,7 +437,7 @@ namespace VantaCSS
                 return;
             }
 
-            if (isFlex && flexDirection.StartsWith("column"))
+            if (isFlex && flexDirection.StartsWith("column", StringComparison.Ordinal))
             {
                 ArrangeFlexColumn(node, children, parentBox, contentX, contentY, contentW, contentH, gap, containingBlock, vw, vh);
             }
@@ -667,7 +507,7 @@ namespace VantaCSS
                     continue;
                 }
 
-                bool inline = cdisplay == "inline" || cdisplay == "inline-block" || cdisplay == "inline-flex" || cdisplay == "inline-grid" || cdisplay == "inline-table" || cdisplay.StartsWith("inline");
+                bool inline = cdisplay == "inline" || cdisplay == "inline-block" || cdisplay == "inline-flex" || cdisplay == "inline-grid" || cdisplay == "inline-table" || cdisplay.StartsWith("inline", StringComparison.Ordinal);
                 // Also treat images as inline by default.
                 bool isImage = child.Type != null && (child.Type.Name ?? "").IndexOf("Image", StringComparison.OrdinalIgnoreCase) >= 0;
                 if (isImage) inline = true;
@@ -1412,7 +1252,7 @@ namespace VantaCSS
                 if (display == "flex" || display == "inline-flex")
                 {
                     string dir = (GetStyle(style, "flex-direction") ?? "row").ToLowerInvariant();
-                    if (dir.StartsWith("column"))
+                    if (dir.StartsWith("column", StringComparison.Ordinal))
                     {
                         double max = 0;
                         foreach (var c in list) max = Math.Max(max, MeasurePreferredWidth(c, containingW, vw, vh));
@@ -1481,8 +1321,6 @@ namespace VantaCSS
             return pos == "relative" || pos == "absolute" || pos == "fixed" || pos == "sticky";
         }
 
-        private static readonly Regex _varRegex = new Regex(@"var\(\s*(--[\w-]+)(?:\s*,\s*(?<fallback>[^)]*))?\)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
         public string ResolveVarValue(string value, Node node)
         {
             return ResolveVarValue(value, node, null);
@@ -1491,19 +1329,29 @@ namespace VantaCSS
         public string ResolveVarValue(string value, Node node, Dictionary<string, string> localVars)
         {
             if (string.IsNullOrWhiteSpace(value)) return value;
-            if (!value.Contains("var(")) return value;
+            if (value.IndexOf("var(", StringComparison.OrdinalIgnoreCase) < 0) return value;
             var visiting = new HashSet<string>(StringComparer.Ordinal);
-            return _varRegex.Replace(value, m =>
+            var tokens = VantaCSS.Grammar.Grammar.Tokenise(value);
+            var sb = new StringBuilder();
+            int copied = 0;
+            for (int i = 0; i < tokens.Length; i++)
             {
-                string varName = m.Groups[1].Value;
-                string fallback = m.Groups["fallback"].Success ? m.Groups["fallback"].Value.Trim() : null;
-                string resolved = LookupVar(varName, node, visiting, localVars);
-                if (resolved == null) resolved = fallback;
-                if (resolved == null) resolved = string.Empty;
+                if (tokens[i].Kind != VantaCSS.Tokeniser.TokenKind.Function) continue;
+                var reference = VantaCSS.Grammar.Grammar.MatchVarReference(tokens, i, value, out int consumed);
+                if (reference == null) continue;
+
+                var last = tokens[i + consumed - 1];
+                string resolved = LookupVar(reference.Name, node, visiting, localVars) ?? reference.Fallback ?? string.Empty;
                 if (resolved.Contains("var("))
                     resolved = ResolveVarValue(resolved, node, localVars);
-                return resolved;
-            });
+
+                int start = (int)tokens[i].StartIndex;
+                sb.Append(value, copied, start - copied).Append(resolved);
+                copied = (int)(last.StartIndex + last.Length);
+                i += consumed - 1;
+            }
+            sb.Append(value, copied, value.Length - copied);
+            return sb.ToString();
         }
 
         private string LookupVar(string name, Node node, HashSet<string> visiting, Dictionary<string, string> localVars)
@@ -1560,10 +1408,7 @@ namespace VantaCSS
             if (node?.UntypedProps == null) return null;
             try
             {
-                var t = node.UntypedProps.GetType();
-                var f = t.GetField("TextContent");
-                var p = t.GetProperty("TextContent");
-                return f?.GetValue(node.UntypedProps) as string ?? p?.GetValue(node.UntypedProps) as string;
+                return PropertyReader.GetString(node.UntypedProps, "TextContent");
             }
             catch { return null; }
         }
@@ -1623,7 +1468,7 @@ namespace VantaCSS
                 shorthand = GetStyle(style, "border");
             if (shorthand != null)
             {
-                return ParseEdgesShorthandValue(shorthand, reference);
+                return ParseEdgesShorthandValue(shorthand, reference, prop.StartsWith("border", StringComparison.Ordinal));
             }
             return e;
         }
@@ -1634,23 +1479,18 @@ namespace VantaCSS
             if (style == null) return e;
             string shorthand = GetStyle(style, prop);
             if (shorthand == null) return e;
-            return ParseEdgesShorthandValue(shorthand, reference);
+            return ParseEdgesShorthandValue(shorthand, reference, true);
         }
 
-        private Edges ParseEdgesShorthandValue(string shorthand, double reference)
+        private Edges ParseEdgesShorthandValue(string shorthand, double reference, bool border)
         {
             var e = new Edges();
             if (string.IsNullOrWhiteSpace(shorthand)) return e;
-            // border shorthand may be "1px solid black"
-            var parts = shorthand.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            // collect numeric tokens
-            var nums = new List<string>();
-            foreach (var p in parts)
-            {
-                if (IsNumericLen(p)) nums.Add(p);
-            }
-            double[] vals = new double[nums.Count];
-            for (int i = 0; i < nums.Count; i++) vals[i] = ParseEdgeValue(nums[i], reference);
+            var slots = border
+                ? VantaCSS.Grammar.Grammar.ParseBorderLengths(shorthand)
+                : (VantaCSS.Grammar.Grammar.ParseEdgeSlots(shorthand) ?? new string[0]);
+            double[] vals = new double[slots.Length];
+            for (int i = 0; i < slots.Length; i++) vals[i] = ParseEdgeValue(slots[i], reference);
             if (vals.Length == 1)
             {
                 e.t = e.r = e.b = e.l = vals[0];
@@ -1677,17 +1517,6 @@ namespace VantaCSS
             return e;
         }
 
-        private static bool IsNumericLen(string tok)
-        {
-            if (string.IsNullOrWhiteSpace(tok)) return false;
-            tok = tok.Trim().ToLowerInvariant();
-            if (tok.EndsWith("px") || tok.EndsWith("%") || tok.EndsWith("em") || tok.EndsWith("rem") || tok.EndsWith("vh") || tok.EndsWith("vw"))
-                return true;
-            // border style keywords
-            if (tok == "solid" || tok == "dashed" || tok == "dotted" || tok == "none" || tok == "hidden") return false;
-            return double.TryParse(tok, NumberStyles.Float, CultureInfo.InvariantCulture, out _);
-        }
-
         private double ParseEdgeValue(string v, double reference)
         {
             if (string.IsNullOrWhiteSpace(v)) return double.NaN;
@@ -1699,38 +1528,38 @@ namespace VantaCSS
             if (string.IsNullOrWhiteSpace(v)) return double.NaN;
             v = v.Trim().ToLowerInvariant();
             if (v == "auto" || v == "inherit" || v == "initial" || v == "none" || v == "normal") return double.NaN;
-            if (v.EndsWith("%"))
+            if (v.EndsWith("%", StringComparison.Ordinal))
             {
                 var n = v.Substring(0, v.Length - 1).Trim();
                 if (double.TryParse(n, NumberStyles.Float, CultureInfo.InvariantCulture, out double p))
                     return p * reference / 100.0;
                 return double.NaN;
             }
-            if (v.EndsWith("px"))
+            if (v.EndsWith("px", StringComparison.Ordinal))
             {
                 var n = v.Substring(0, v.Length - 2).Trim();
                 if (double.TryParse(n, NumberStyles.Float, CultureInfo.InvariantCulture, out double px)) return px;
                 return double.NaN;
             }
-            if (v.EndsWith("em") || v.EndsWith("rem"))
+            if (v.EndsWith("em", StringComparison.Ordinal) || v.EndsWith("rem", StringComparison.Ordinal))
             {
                 var n = v.TrimEnd('m', 'e', 'r');
                 if (double.TryParse(n, NumberStyles.Float, CultureInfo.InvariantCulture, out double em)) return em * 16;
                 return double.NaN;
             }
-            if (v.EndsWith("vw"))
+            if (v.EndsWith("vw", StringComparison.Ordinal))
             {
                 var n = v.Substring(0, v.Length - 2).Trim();
                 if (double.TryParse(n, NumberStyles.Float, CultureInfo.InvariantCulture, out double x)) return x * (_layoutVw > 0 ? _layoutVw : vw) / 100.0;
                 return double.NaN;
             }
-            if (v.EndsWith("vh"))
+            if (v.EndsWith("vh", StringComparison.Ordinal))
             {
                 var n = v.Substring(0, v.Length - 2).Trim();
                 if (double.TryParse(n, NumberStyles.Float, CultureInfo.InvariantCulture, out double x)) return x * (_layoutVh > 0 ? _layoutVh : vh) / 100.0;
                 return double.NaN;
             }
-            if (v.EndsWith("ms")) return double.NaN;
+            if (v.EndsWith("ms", StringComparison.Ordinal)) return double.NaN;
             // leading number
             var sb = new StringBuilder();
             int i = 0;
@@ -1752,73 +1581,58 @@ namespace VantaCSS
             return ParseLen(v, reference, _layoutVw, _layoutVh);
         }
 
-        private static (int W, int H) GetImageDimensions(Rocket.Core.DOM.Node node)
+        private static (int W, int H) GetImageDimensions(Node node)
         {
             try
             {
-                if (node?.UntypedProps == null) return (0, 0);
-                var t = node.UntypedProps.GetType();
-                var f = t.GetField("Src");
-                var p = t.GetProperty("Src");
-                string src = f?.GetValue(node.UntypedProps) as string ?? p?.GetValue(node.UntypedProps) as string;
+                string src = PropertyReader.GetString(node?.UntypedProps, "Src");
                 if (string.IsNullOrWhiteSpace(src)) return (0, 0);
 
                 if (src.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
                 {
                     int comma = src.IndexOf(',');
-                    string b64 = comma >= 0 ? src.Substring(comma + 1) : src;
-                    byte[] bytes = Convert.FromBase64String(b64.Trim());
+                    byte[] bytes = Convert.FromBase64String((comma >= 0 ? src.Substring(comma + 1) : src).Trim());
                     using (var ms = new System.IO.MemoryStream(bytes))
-                    using (var img = System.Drawing.Image.FromStream(ms))
                     {
-                        return (img.Width, img.Height);
+                        return ImageDimensions.TryGetSize(ms, out int w, out int h) ? (w, h) : (0, 0);
                     }
                 }
 
-                string path = src;
-                if (!System.IO.Path.IsPathRooted(path))
+                string path = ResolveImagePath(src);
+                if (path == null) return (0, 0);
+                using (var fs = System.IO.File.OpenRead(path))
                 {
-                    var rel = path.TrimStart('/', '\\');
-                    foreach (var baseDir in new[] { System.IO.Directory.GetCurrentDirectory(), System.AppContext.BaseDirectory })
-                    {
-                        try
-                        {
-                            var cand = System.IO.Path.Combine(baseDir, rel);
-                            if (System.IO.File.Exists(cand)) { path = cand; break; }
-                        }
-                        catch { }
-                    }
-                    if (!System.IO.File.Exists(path))
-                    {
-                        foreach (var baseDir in new[] { System.IO.Directory.GetCurrentDirectory(), System.AppContext.BaseDirectory })
-                        {
-                            try
-                            {
-                                var dir = new System.IO.DirectoryInfo(baseDir);
-                                while (dir != null)
-                                {
-                                    var cand = System.IO.Path.Combine(dir.FullName, rel);
-                                    if (System.IO.File.Exists(cand)) { path = cand; break; }
-                                    dir = dir.Parent;
-                                }
-                                if (System.IO.File.Exists(path)) break;
-                            }
-                            catch { }
-                        }
-                    }
-                }
-                if (System.IO.File.Exists(path))
-                {
-                    using (var img = System.Drawing.Image.FromFile(path))
-                    {
-                        return (img.Width, img.Height);
-                    }
+                    return ImageDimensions.TryGetSize(fs, out int w, out int h) ? (w, h) : (0, 0);
                 }
             }
             catch
             {
             }
             return (0, 0);
+        }
+
+        private static string ResolveImagePath(string src)
+        {
+            if (System.IO.Path.IsPathRooted(src)) return System.IO.File.Exists(src) ? src : null;
+
+            var rel = src.TrimStart('/', '\\');
+            string[] baseDirs = { System.IO.Directory.GetCurrentDirectory(), System.AppContext.BaseDirectory };
+
+            foreach (var baseDir in baseDirs)
+            {
+                var cand = System.IO.Path.Combine(baseDir, rel);
+                if (System.IO.File.Exists(cand)) return cand;
+            }
+
+            foreach (var baseDir in baseDirs)
+            {
+                for (var dir = new System.IO.DirectoryInfo(baseDir); dir != null; dir = dir.Parent)
+                {
+                    var cand = System.IO.Path.Combine(dir.FullName, rel);
+                    if (System.IO.File.Exists(cand)) return cand;
+                }
+            }
+            return null;
         }
     }
 }

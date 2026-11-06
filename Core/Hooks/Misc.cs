@@ -22,9 +22,10 @@ namespace Rocket.Core
         /// <remarks>Miscellaneous hooks: deferred values, debug values, transitions and external-store subscriptions.</remarks>
         public static (bool IsPending, Action<Action> StartTransition) Transition()
         {
-            Action<Action> starter = action => { try { action(); } catch { } };
-            return (false, starter);
+            return (false, _transitionStarter);
         }
+
+        private static readonly Action<Action> _transitionStarter = action => { try { action(); } catch { } };
 
         /// <summary>
         /// Reads a snapshot from an external store. Subscription handling is

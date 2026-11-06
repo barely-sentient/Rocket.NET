@@ -157,32 +157,6 @@ namespace VantaCSS
             if (active) { ActiveNode = node; ActiveNodes.Add(node); }
         }
 
-        /// <summary>Alias for <see cref="Hover"/>.</summary>
-        public void SetHover(Node node) => Hover(node);
-        /// <summary>Alias for <see cref="Hover"/>.</summary>
-        public void SetHovered(Node node) => Hover(node);
-        /// <summary>Alias for <see cref="Focus"/>.</summary>
-        public void SetFocused(Node node) => Focus(node);
-        /// <summary>Alias for <see cref="Activate"/>.</summary>
-        public void SetActivated(Node node) => Activate(node);
-        /// <summary>Alias for <see cref="Activate"/>.</summary>
-        public void SetActiveState(Node node) => Activate(node);
-        /// <summary>Alias for <see cref="IsHovered"/>.</summary>
-        public bool IsHover(Node node) => IsHovered(node);
-        /// <summary>Alias for <see cref="IsFocused"/>.</summary>
-        public bool IsFocus(Node node) => IsFocused(node);
-        /// <summary>Alias for <see cref="IsActive"/>.</summary>
-        public bool IsActivate(Node node) => IsActive(node);
-        /// <summary>Alias for <see cref="Focus"/>.</summary>
-        public void SetFocus(Node node) => Focus(node);
-        /// <summary>Alias for <see cref="Activate"/>.</summary>
-        public void SetActive(Node node) => Activate(node);
-        /// <summary>Alias for <see cref="ClearHover"/>.</summary>
-        public void Unhover() => ClearHover();
-        /// <summary>Alias for <see cref="ClearFocus"/>.</summary>
-        public void Blur() => ClearFocus();
-        /// <summary>Alias for <see cref="ClearActive"/>.</summary>
-        public void Deactivate() => ClearActive();
 
         /// <summary>Whether the given node is currently hovered.</summary>
         public bool IsHovered(Node node)
@@ -227,45 +201,6 @@ namespace VantaCSS
                 case "active": return IsActive(node);
                 default: return node.MatchesPseudo(pseudo);
             }
-        }
-
-        /// <summary>
-        /// Extracts pseudo-classes from a selector compound (e.g. ":hover:focus")
-        /// and tests them against <paramref name="node"/>.
-        /// </summary>
-        public bool SelectorPseudoMatches(string selector, Node node)
-        {
-            if (string.IsNullOrWhiteSpace(selector)) return true;
-            if (node == null)
-            {
-                // No node context: pseudo rules never match a concrete computation.
-                return !selector.Contains(":");
-            }
-            // Find all pseudo tokens.
-            var pseudos = new List<string>();
-            int i = 0;
-            while (i < selector.Length)
-            {
-                if (selector[i] == ':')
-                {
-                    int j = i + 1;
-                    var sb = new System.Text.StringBuilder();
-                    // read name (and optional simple argument)
-                    while (j < selector.Length && (char.IsLetterOrDigit(selector[j]) || selector[j] == '-' || selector[j] == '(' || selector[j] == ')'))
-                    {
-                        sb.Append(selector[j]);
-                        j++;
-                    }
-                    if (sb.Length > 0) pseudos.Add(":" + sb.ToString());
-                    i = j;
-                }
-                else i++;
-            }
-            foreach (var p in pseudos)
-            {
-                if (!MatchesPseudo(node, p)) return false;
-            }
-            return true;
         }
     }
 }

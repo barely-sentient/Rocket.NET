@@ -152,7 +152,7 @@ namespace VantaCSS.Grammar
                         if (tokens[j].Kind == TokenKind.OpenBrace) depth++;
                         else if (tokens[j].Kind == TokenKind.CloseBrace) { depth--; if (depth == 0) break; }
                     }
-                    var innerTokens = tokens.Skip(i + 1).Take(Math.Max(0, j - i - 1)).ToArray();
+                    var innerTokens = SubArray(tokens, i + 1, j - i - 1);
                     var innerRules = ParseRules(innerTokens, source);
                     string media = null;
                     if (header.StartsWith("@media", StringComparison.OrdinalIgnoreCase))
@@ -164,7 +164,10 @@ namespace VantaCSS.Grammar
                         Selector = header,
                         IsAtRule = true,
                         Media = media,
-                        Rules = innerRules
+                        Rules = innerRules,
+                        Declarations = header.StartsWith("@font-face", StringComparison.OrdinalIgnoreCase)
+                            ? ParseDeclarations(innerTokens, source)
+                            : new List<CssDeclaration>()
                     });
                     i = (j < n) ? j + 1 : n;
                     continue;
@@ -186,7 +189,7 @@ namespace VantaCSS.Grammar
                     if (tokens[k].Kind == TokenKind.OpenBrace) depth2++;
                     else if (tokens[k].Kind == TokenKind.CloseBrace) { depth2--; if (depth2 == 0) break; }
                 }
-                var declTokens = tokens.Skip(i + 1).Take(Math.Max(0, k - i - 1)).ToArray();
+                var declTokens = SubArray(tokens, i + 1, k - i - 1);
                 var declarations = ParseDeclarations(declTokens, source);
                 rules.Add(new CssRule { Selector = selector, Declarations = declarations });
                 i = (k < n) ? k + 1 : n;
@@ -197,6 +200,15 @@ namespace VantaCSS.Grammar
         private static bool IsTrivia(Token token)
         {
             return token.Kind == TokenKind.Whitespace || token.Kind == TokenKind.Comment;
+        }
+
+        private static Token[] SubArray(Token[] tokens, int start, int count)
+        {
+            count = Math.Min(count, tokens.Length - start);
+            if (count <= 0) return Array.Empty<Token>();
+            var result = new Token[count];
+            Array.Copy(tokens, start, result, 0, count);
+            return result;
         }
 
         private static string Slice(string source, Token[] tokens, int start, int end)

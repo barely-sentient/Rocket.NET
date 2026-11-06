@@ -160,11 +160,6 @@ using VantaCSS;
         /// Simple CSS engine instance for this UI.
         /// </summary>
         public static VantaCSS.VantaCssEngine CssEngine { get; set; } = new VantaCSS.VantaCssEngine();
-
-        /// <summary>
-        /// Alias for <see cref="Stylesheets"/>.
-        /// </summary>
-        public static List<VantaCSS.Stylesheet> StyleSheets => Stylesheets;
         
         /// <summary>
         /// Sets up the primitive dictionary
@@ -434,14 +429,6 @@ using VantaCSS;
         public static void Effect(Action effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
 
         public static void Effect(Func<Action> effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
-
-        public static void LayoutEffect(Action effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
-
-        public static void LayoutEffect(Func<Action> effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
-
-        public static void InsertionEffect(Action effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
-
-        public static void InsertionEffect(Func<Action> effect, object[] dependencies = null) => Hooks.SideEffect(effect, dependencies);
 
         public static (TState State, Action<TAction> Dispatch) Reducer<TState, TAction>(Func<TState, TAction, TState> reducer, TState initial) => Hooks.Reducer(reducer, initial);
 

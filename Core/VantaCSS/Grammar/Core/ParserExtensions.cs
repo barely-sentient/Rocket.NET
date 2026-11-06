@@ -84,5 +84,13 @@ namespace VantaCSS.Grammar
                 (T2)ConvertValue(values.Length > 1 ? values[1] : null, typeof(T2), source),
                 (T3)ConvertValue(values.Length > 2 ? values[2] : null, typeof(T3), source),
                 (T4)ConvertValue(values.Length > 3 ? values[3] : null, typeof(T4), source)));
+
+        public static IParser Builder<T1, T2, T3, T4, T5, TResult>(this IParser parser, Func<T1, T2, T3, T4, T5, TResult> builder) =>
+            new BuilderParser(parser, (values, source) => builder(
+                (T1)ConvertValue(values.Length > 0 ? values[0] : null, typeof(T1), source),
+                (T2)ConvertValue(values.Length > 1 ? values[1] : null, typeof(T2), source),
+                (T3)ConvertValue(values.Length > 2 ? values[2] : null, typeof(T3), source),
+                (T4)ConvertValue(values.Length > 3 ? values[3] : null, typeof(T4), source),
+                (T5)ConvertValue(values.Length > 4 ? values[4] : null, typeof(T5), source)));
     }
 }

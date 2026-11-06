@@ -22,26 +22,9 @@ namespace VantaCSS
         public CssRule(string selector, string declarations)
         {
             Selector = selector;
-            if (!string.IsNullOrWhiteSpace(declarations))
-            {
-                foreach (var part in declarations.Split(';'))
-                {
-                    var trimmed = part.Trim();
-                    if (string.IsNullOrEmpty(trimmed)) continue;
-                    var idx = trimmed.IndexOf(':');
-                    if (idx > 0)
-                    {
-                        var key = trimmed.Substring(0, idx).Trim();
-                        var val = trimmed.Substring(idx + 1).Trim();
-                        Declarations[key] = val;
-                    }
-                }
-            }
+            if (string.IsNullOrWhiteSpace(declarations)) return;
+            foreach (var declaration in VantaCSS.Grammar.Grammar.ParseDeclarations(declarations))
+                Declarations[declaration.Property] = declaration.Value;
         }
     }
-
-    /// <summary>
-    /// Alias for <see cref="CssRule"/>.
-    /// </summary>
-    public class CSSRule : CssRule { }
 }
