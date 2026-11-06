@@ -644,6 +644,9 @@ namespace VantaCSS
         private void ArrangeBlock(Node node, Node[] children, LayoutBox parentBox, double contentX, double contentY, double contentW, double contentH, double gap, LayoutBox containingBlock, int vw, int vh)
         {
             double y = contentY;
+            double x = contentX;
+            double lineH = 0;
+            bool inLine = false;
             foreach (var child in children)
             {
                 if (child == null) continue;
@@ -651,7 +654,7 @@ namespace VantaCSS
                 string cdisplay = (GetStyle(cstyle, "display") ?? DefaultDisplay(child)).ToLowerInvariant();
                 if (cdisplay == "none")
                 {
-                    var zero = new LayoutBox { X = contentX, Y = y, Width = 0, Height = 0 };
+                    var zero = new LayoutBox { X = x, Y = y, Width = 0, Height = 0 };
                     SetNodeLayout(child, zero);
                     continue;
                 }
@@ -664,9 +667,64 @@ namespace VantaCSS
                     continue;
                 }
 
-                var slot2 = new LayoutBox { X = contentX, Y = y, Width = contentW, Height = contentH };
-                var childBox = LayoutNode(child, slot2, containingBlock, vw, vh);
-                y = childBox.Y + childBox.Height + cmargin.b + gap;
+                bool inline = cdisplay == "inline" || cdisplay == "inline-block" || cdisplay == "inline-flex" || cdisplay == "inline-grid" || cdisplay == "inline-table" || cdisplay.StartsWith("inline");
+                // Also treat images as inline by default.
+                bool isImage = child.Type != null && (child.Type.Name ?? "").IndexOf("Image", StringComparison.OrdinalIgnoreCase) >= 0;
+                if (isImage) inline = true;
+
+                if (!inline)
+                {
+                    // flush current inline line
+                    if (inLine)
+                    {
+                        y += lineH + gap;
+                        lineH = 0;
+                        x = contentX;
+                        inLine = false;
+                    }
+                    var slot2 = new LayoutBox { X = contentX, Y = y, Width = contentW, Height = contentH };
+                    var childBox = LayoutNode(child, slot2, containingBlock, vw, vh);
+                    y = childBox.Y + childBox.Height + cmargin.b + gap;
+                    x = contentX;
+                }
+                else
+                {
+                    double remaining = (contentX + contentW) - x;
+                    if (inLine && remaining < 1)
+                    {
+                        y += lineH + gap;
+                        lineH = 0;
+                        x = contentX;
+                        inLine = false;
+                        remaining = contentW;
+                    }
+                    var slot2 = new LayoutBox { X = x, Y = y, Width = Math.Max(1, remaining), Height = contentH };
+                    var childBox = LayoutNode(child, slot2, containingBlock, vw, vh);
+                    // If it didn't fit on this line, wrap.
+                    if (inLine && childBox.Width > remaining + 0.5 && x > contentX)
+                    {
+                        y += lineH + gap;
+                        lineH = 0;
+                        x = contentX;
+                        remaining = contentW;
+                        var slot3 = new LayoutBox { X = x, Y = y, Width = Math.Max(1, remaining), Height = contentH };
+                        childBox = LayoutNode(child, slot3, containingBlock, vw, vh);
+                    }
+                    childBox.X = x;
+                    childBox.Y = y;
+                    if (child.Layout != null)
+                    {
+                        child.Layout.X = x;
+                        child.Layout.Y = y;
+                    }
+                    x += childBox.Width + cmargin.r + gap;
+                    lineH = Math.Max(lineH, childBox.Height + cmargin.t + cmargin.b);
+                    inLine = true;
+                }
+            }
+            if (inLine)
+            {
+                y += lineH;
             }
         }
 
