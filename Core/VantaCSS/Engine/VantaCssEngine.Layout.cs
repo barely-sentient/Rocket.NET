@@ -477,18 +477,68 @@ namespace VantaCSS
             double x = contentX;
             double lineH = 0;
             bool inLine = false;
+            var floats = new List<(string side, double x, double y, double w, double h, double bottom)>();
+            double __origCX = contentX, __origCW = contentW;
             foreach (var child in children)
             {
                 if (child == null) continue;
                 var cstyle = child.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                string cfloat = (GetStyle(cstyle, "float") ?? "none").ToLowerInvariant();
+                string cclear = (GetStyle(cstyle, "clear") ?? "none").ToLowerInvariant();
                 string cdisplay = (GetStyle(cstyle, "display") ?? DefaultDisplay(child)).ToLowerInvariant();
+                var cmargin = ParseEdges(cstyle, "margin", contentW);
                 if (cdisplay == "none")
                 {
                     var zero = new LayoutBox { X = x, Y = y, Width = 0, Height = 0 };
                     SetNodeLayout(child, zero);
                     continue;
                 }
-                var cmargin = ParseEdges(cstyle, "margin", contentW);
+
+                // clear
+                if (cclear != "none")
+                {
+                    if (inLine)
+                    {
+                        y += lineH + gap;
+                        lineH = 0;
+                        x = contentX;
+                        inLine = false;
+                    }
+                    double clearBottom = contentY;
+                    foreach (var fl in floats)
+                    {
+                        if ((cclear == "left" || cclear == "both") && fl.side == "left") clearBottom = Math.Max(clearBottom, fl.bottom);
+                        if ((cclear == "right" || cclear == "both") && fl.side == "right") clearBottom = Math.Max(clearBottom, fl.bottom);
+                    }
+                    if (clearBottom > y) y = clearBottom;
+                }
+
+                // float
+                if (cfloat == "left" || cfloat == "right")
+                {
+                    if (inLine)
+                    {
+                        y += lineH + gap;
+                        lineH = 0;
+                        x = contentX;
+                        inLine = false;
+                    }
+                    var slot = new LayoutBox { X = contentX, Y = y, Width = contentW, Height = contentH };
+                    var childBox = LayoutNode(child, slot, containingBlock, vw, vh);
+                    double fw = childBox.Width;
+                    double fh = childBox.Height;
+                    if (cfloat == "left") childBox.X = contentX + cmargin.l;
+                    else childBox.X = contentX + contentW - fw - cmargin.r;
+                    childBox.Y = y + cmargin.t;
+                    if (child.Layout != null)
+                    {
+                        child.Layout.X = childBox.X;
+                        child.Layout.Y = childBox.Y;
+                    }
+                    floats.Add((cfloat, childBox.X, childBox.Y, fw, fh, childBox.Y + fh + cmargin.b));
+                    continue;
+                }
+
                 string cpos = (GetStyle(cstyle, "position") ?? "static").ToLowerInvariant();
                 if (cpos == "absolute" || cpos == "fixed")
                 {
@@ -501,6 +551,19 @@ namespace VantaCSS
                 // Also treat images as inline by default.
                 bool isImage = child.Type != null && (child.Type.Name ?? "").IndexOf("Image", StringComparison.OrdinalIgnoreCase) >= 0;
                 if (isImage) inline = true;
+
+                // Adjust for active floats at this vertical position.
+                double cx = contentX;
+                double cw = contentW;
+                foreach (var fl in floats)
+                {
+                    if (fl.bottom <= y + 0.5) continue;
+                    if (fl.side == "left") cx += fl.w + gap;
+                    else cw -= fl.w + gap;
+                }
+                if (cw < 1) cw = contentW;
+                contentX = cx;
+                contentW = cw;
 
                 if (!inline)
                 {
@@ -551,6 +614,8 @@ namespace VantaCSS
                     lineH = Math.Max(lineH, childBox.Height + cmargin.t + cmargin.b);
                     inLine = true;
                 }
+                contentX = __origCX;
+                contentW = __origCW;
             }
             if (inLine)
             {
