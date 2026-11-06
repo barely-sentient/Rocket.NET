@@ -63,7 +63,7 @@ namespace Rocket.Core
     /// </para>
     /// <code>
     /// using Rocket.Core;
-using VantaCSS;
+    /// using VantaCSS;
     /// using static Rocket.Core.UI;
     ///
     /// Node button = C&lt;Button&gt;(
@@ -418,6 +418,34 @@ using VantaCSS;
             }
             
             return new Node<TProps>(type, props, children);
+        }
+
+        /// <summary>
+        /// Use where you'd conventionally use a ternary, due to how the children
+        /// are setup, this exists to perform a ternary cleanly.
+        /// </summary>
+        /// <param name="condition"></param>
+        /// <param name="ifTrue"></param>
+        /// <param name="ifFalse"></param>
+        /// <returns></returns>
+        public static Node IfThen(bool condition, Node ifTrue, Node ifFalse)
+        {
+            return condition ? ifTrue : ifFalse;
+        }
+
+        public static Node IfThen(bool condition, Node[] ifTrue, Node ifFalse)
+        {
+            return Div(new HTMLDivElementProps(), condition ? ifTrue : new Node[]{ifFalse});
+        }
+        
+        public static Node IfThen(bool condition, Node[] ifTrue, Node[] ifFalse)
+        {
+            return Div(new HTMLDivElementProps(), condition ? ifTrue : ifFalse);
+        }
+        
+        public static Node IfThen(bool condition, Node ifTrue, Node[] ifFalse)
+        {
+            return Div(new HTMLDivElementProps(), condition ? new Node[]{ifTrue} : ifFalse);
         }
 
         public static (T Value, Action<T> SetValue) State<T>(T initial) => Hooks.State<T>(initial);
