@@ -1,5 +1,6 @@
 using System;
 using Rocket.Core.DOM;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -1442,15 +1443,24 @@ namespace VantaCSS
 
         private struct Edges { public double t, r, b, l; }
 
+        private static readonly ConcurrentDictionary<string, string[]> _edgeLonghandNames =
+            new ConcurrentDictionary<string, string[]>(StringComparer.Ordinal);
+
+        private static string[] EdgeLonghandNames(string prop)
+        {
+            return _edgeLonghandNames.GetOrAdd(prop, p => new[] { p + "-top", p + "-right", p + "-bottom", p + "-left" });
+        }
+
         private Edges ParseEdges(Dictionary<string, string> style, string prop, double reference)
         {
             var e = new Edges();
             if (style == null) return e;
             // individual
-            string top = GetStyle(style, prop + "-top");
-            string right = GetStyle(style, prop + "-right");
-            string bottom = GetStyle(style, prop + "-bottom");
-            string left = GetStyle(style, prop + "-left");
+            string[] names = EdgeLonghandNames(prop);
+            string top = GetStyle(style, names[0]);
+            string right = GetStyle(style, names[1]);
+            string bottom = GetStyle(style, names[2]);
+            string left = GetStyle(style, names[3]);
             if (top != null || right != null || bottom != null || left != null)
             {
                 e.t = ParseEdgeValue(top, reference);
@@ -1523,43 +1533,67 @@ namespace VantaCSS
             return ParseLen(v, reference, 0, 0);
         }
 
+        private enum LengthUnit : byte
+        {
+            Invalid,
+            Percent,
+            Px,
+            Em,
+            Vw,
+            Vh,
+            Number
+        }
+
+        private struct ParsedLength
+        {
+            public LengthUnit Unit;
+            public double Number;
+        }
+
+        private const int MaxLengthCacheEntries = 4096;
+
+        private static readonly ConcurrentDictionary<string, ParsedLength> _lengthCache =
+            new ConcurrentDictionary<string, ParsedLength>(StringComparer.Ordinal);
+
         private double ParseLen(string v, double reference, int vw, int vh)
         {
             if (string.IsNullOrWhiteSpace(v)) return double.NaN;
-            v = v.Trim().ToLowerInvariant();
-            if (v == "auto" || v == "inherit" || v == "initial" || v == "none" || v == "normal") return double.NaN;
+            if (!_lengthCache.TryGetValue(v, out var parsed))
+            {
+                parsed = ParseLengthToken(v);
+                if (_lengthCache.Count >= MaxLengthCacheEntries) _lengthCache.Clear();
+                _lengthCache[v] = parsed;
+            }
+
+            // The number is cached; the unit is applied per call because viewport units depend on current state.
+            switch (parsed.Unit)
+            {
+                case LengthUnit.Percent: return parsed.Number * reference / 100.0;
+                case LengthUnit.Px: return parsed.Number;
+                case LengthUnit.Em: return parsed.Number * 16;
+                case LengthUnit.Vw: return parsed.Number * (_layoutVw > 0 ? _layoutVw : vw) / 100.0;
+                case LengthUnit.Vh: return parsed.Number * (_layoutVh > 0 ? _layoutVh : vh) / 100.0;
+                case LengthUnit.Number: return parsed.Number;
+                default: return double.NaN;
+            }
+        }
+
+        private static ParsedLength ParseLengthToken(string value)
+        {
+            string v = value.Trim().ToLowerInvariant();
+            if (v == "auto" || v == "inherit" || v == "initial" || v == "none" || v == "normal") return default;
             if (v.EndsWith("%", StringComparison.Ordinal))
-            {
-                var n = v.Substring(0, v.Length - 1).Trim();
-                if (double.TryParse(n, NumberStyles.Float, CultureInfo.InvariantCulture, out double p))
-                    return p * reference / 100.0;
-                return double.NaN;
-            }
+                return new ParsedLength { Unit = LengthUnit.Percent, Number = ParseInvariant(v.Substring(0, v.Length - 1).Trim()) };
             if (v.EndsWith("px", StringComparison.Ordinal))
-            {
-                var n = v.Substring(0, v.Length - 2).Trim();
-                if (double.TryParse(n, NumberStyles.Float, CultureInfo.InvariantCulture, out double px)) return px;
-                return double.NaN;
-            }
+                return new ParsedLength { Unit = LengthUnit.Px, Number = ParseInvariant(v.Substring(0, v.Length - 2).Trim()) };
             if (v.EndsWith("em", StringComparison.Ordinal) || v.EndsWith("rem", StringComparison.Ordinal))
-            {
-                var n = v.TrimEnd('m', 'e', 'r');
-                if (double.TryParse(n, NumberStyles.Float, CultureInfo.InvariantCulture, out double em)) return em * 16;
-                return double.NaN;
-            }
+                return new ParsedLength { Unit = LengthUnit.Em, Number = ParseInvariant(v.TrimEnd('m', 'e', 'r')) };
             if (v.EndsWith("vw", StringComparison.Ordinal))
-            {
-                var n = v.Substring(0, v.Length - 2).Trim();
-                if (double.TryParse(n, NumberStyles.Float, CultureInfo.InvariantCulture, out double x)) return x * (_layoutVw > 0 ? _layoutVw : vw) / 100.0;
-                return double.NaN;
-            }
+                return new ParsedLength { Unit = LengthUnit.Vw, Number = ParseInvariant(v.Substring(0, v.Length - 2).Trim()) };
             if (v.EndsWith("vh", StringComparison.Ordinal))
-            {
-                var n = v.Substring(0, v.Length - 2).Trim();
-                if (double.TryParse(n, NumberStyles.Float, CultureInfo.InvariantCulture, out double x)) return x * (_layoutVh > 0 ? _layoutVh : vh) / 100.0;
-                return double.NaN;
-            }
-            if (v.EndsWith("ms", StringComparison.Ordinal)) return double.NaN;
+                return new ParsedLength { Unit = LengthUnit.Vh, Number = ParseInvariant(v.Substring(0, v.Length - 2).Trim()) };
+            if (v.EndsWith("ms", StringComparison.Ordinal)) return default;
+
             // leading number
             var sb = new StringBuilder();
             int i = 0;
@@ -1571,8 +1605,13 @@ namespace VantaCSS
                 sb.Append(v[i]); i++;
             }
             if (sb.Length > 0 && double.TryParse(sb.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double num))
-                return num;
-            return double.NaN;
+                return new ParsedLength { Unit = LengthUnit.Number, Number = num };
+            return default;
+        }
+
+        private static double ParseInvariant(string text)
+        {
+            return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double value) ? value : double.NaN;
         }
 
         // overload with fewer params
@@ -1581,13 +1620,33 @@ namespace VantaCSS
             return ParseLen(v, reference, _layoutVw, _layoutVh);
         }
 
+        private const int MaxImageDimensionCacheEntries = 512;
+
+        private static readonly ConcurrentDictionary<string, (int W, int H)> _imageDimensionCache =
+            new ConcurrentDictionary<string, (int W, int H)>(StringComparer.Ordinal);
+
         private static (int W, int H) GetImageDimensions(Node node)
+        {
+            string src;
+            try { src = PropertyReader.GetString(node?.UntypedProps, "Src"); }
+            catch { return (0, 0); }
+            if (string.IsNullOrWhiteSpace(src)) return (0, 0);
+
+            if (_imageDimensionCache.TryGetValue(src, out var cached)) return cached;
+            var size = ReadImageDimensions(src);
+            // Only successful reads are cached, so an image that appears later is still picked up.
+            if (size.W > 0 && size.H > 0)
+            {
+                if (_imageDimensionCache.Count >= MaxImageDimensionCacheEntries) _imageDimensionCache.Clear();
+                _imageDimensionCache[src] = size;
+            }
+            return size;
+        }
+
+        private static (int W, int H) ReadImageDimensions(string src)
         {
             try
             {
-                string src = PropertyReader.GetString(node?.UntypedProps, "Src");
-                if (string.IsNullOrWhiteSpace(src)) return (0, 0);
-
                 if (src.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
                 {
                     int comma = src.IndexOf(',');

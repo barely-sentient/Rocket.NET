@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Globalization;
@@ -25,14 +26,11 @@ namespace Rocket.Core.DOM
     /// </remarks>
     public class Node
     {
-        private sealed class MemberRef
-        {
-            public PropertyInfo Property;
-            public FieldInfo Field;
-        }
+        private static readonly ConcurrentDictionary<(Type, string), Func<object, object>> _handlerGetterCache =
+            new ConcurrentDictionary<(Type, string), Func<object, object>>();
 
-        private static readonly ConcurrentDictionary<(Type, string), MemberRef> _memberRefCache =
-            new ConcurrentDictionary<(Type, string), MemberRef>();
+        private static readonly ConcurrentDictionary<string, string> _eventPropNameCache =
+            new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
 
         private static readonly Dictionary<string, string> _eventNameAliases =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -136,7 +134,9 @@ namespace Rocket.Core.DOM
         internal int _styleCacheH;
         internal VantaCSS.Orientation _styleCacheO;
         internal double _styleCacheTime;
-        internal string _styleCachePseudoKey;
+        internal long _styleCachePseudoKey;
+        internal string _parsedStyleSource;
+        internal System.Collections.Generic.List<VantaCSS.Grammar.CssDeclaration> _parsedStyleDeclarations;
         internal string _styleCacheResult;
         internal bool _styleCacheValid;
         internal int _styleCacheSheetVersion;
@@ -188,25 +188,13 @@ namespace Rocket.Core.DOM
             if (e == null || string.IsNullOrWhiteSpace(eventName)) return;
             e.Target = e.Target ?? this;
 
-            string pascal = eventName.Trim();
-            if (pascal.Length > 0)
-                pascal = char.ToUpperInvariant(pascal[0]) + pascal.Substring(1);
-            if (_eventNameAliases.TryGetValue(pascal, out var aliased)) pascal = aliased;
-
-            string propName = "On" + pascal;
+            string propName = _eventPropNameCache.GetOrAdd(eventName, EventPropName);
 
             if (!e.IsPropagationStopped && UntypedProps != null)
             {
                 var props = UntypedProps;
-                var t = props.GetType();
-                var mr = _memberRefCache.GetOrAdd((t, propName), key => new MemberRef
-                {
-                    Property = key.Item1.GetProperty(key.Item2),
-                    Field = key.Item1.GetField(key.Item2)
-                });
-
-                object handler = mr.Property != null ? mr.Property.GetValue(props) : null;
-                if (handler == null && mr.Field != null) handler = mr.Field.GetValue(props);
+                var getter = _handlerGetterCache.GetOrAdd((props.GetType(), propName), key => CompileHandlerGetter(key.Item1, key.Item2));
+                object handler = getter?.Invoke(props);
 
                 if (handler is Delegate del)
                 {
@@ -224,6 +212,37 @@ namespace Rocket.Core.DOM
             {
                 Parent.DispatchEvent(eventName, e);
             }
+        }
+
+        private static string EventPropName(string eventName)
+        {
+            string pascal = eventName.Trim();
+            if (pascal.Length > 0)
+                pascal = char.ToUpperInvariant(pascal[0]) + pascal.Substring(1);
+            if (_eventNameAliases.TryGetValue(pascal, out var aliased)) pascal = aliased;
+            return "On" + pascal;
+        }
+
+        private static Func<object, object> CompileHandlerGetter(Type type, string propName)
+        {
+            var property = type.GetProperty(propName);
+            if (property != null && (!property.CanRead || property.GetIndexParameters().Length > 0 || property.GetMethod.IsStatic))
+                property = null;
+            var field = type.GetField(propName);
+            if (field != null && field.IsStatic) field = null;
+            if (property == null && field == null) return null;
+
+            var source = Expression.Parameter(typeof(object), "source");
+            var instance = Expression.Convert(source, type);
+            Expression body = null;
+            if (property != null)
+                body = Expression.Convert(Expression.Property(instance, property), typeof(object));
+            if (field != null)
+            {
+                Expression fieldBody = Expression.Convert(Expression.Field(instance, field), typeof(object));
+                body = body == null ? fieldBody : Expression.Coalesce(body, fieldBody);
+            }
+            return Expression.Lambda<Func<object, object>>(body, source).Compile();
         }
 
         public virtual void Dump(int tabIndent, StringBuilder builder)
