@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Rocket.Core.DOM;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -139,12 +139,15 @@ namespace VantaCSS
         private List<CssRule> GetMatchingRules(string tag, string id, string className, Node node, int width, int height, Orientation orientation)
         {
             EnsureDefaults();
-            var key = new RuleMatchKey(tag, id, className, width, height, orientation,
+            // Selector matching does not depend on the viewport; media queries are
+            // applied per lookup in ComputeStyle. Keeping size out of the key means
+            // a window resize reuses every cached match.
+            var key = new RuleMatchKey(tag, id, className, 0, 0, Orientation.Portrait,
                 node == null ? 0 : GetStateKey(node), GetAncestorKey(node), _stylesheetVersion);
 
             if (_ruleMatchCache.TryGetValue(key, out var cached)) return cached;
             if (_ruleMatchCache.Count >= MaxRuleMatchCacheEntries) _ruleMatchCache.Clear();
-            var rules = BuildMatchingRules(tag, id, className, node, width, height, orientation);
+            var rules = BuildMatchingRules(tag, id, className, node);
             _ruleMatchCache[key] = rules;
             return rules;
         }
@@ -179,7 +182,7 @@ namespace VantaCSS
             return hash;
         }
 
-        private List<CssRule> BuildMatchingRules(string tag, string id, string className, Node node, int width, int height, Orientation orientation)
+        private List<CssRule> BuildMatchingRules(string tag, string id, string className, Node node)
         {
             var collected = new List<(CssRule rule, int specificity, int order)>();
             int order = 0;
@@ -187,7 +190,6 @@ namespace VantaCSS
             {
                 foreach (var rule in sheet.Rules)
                 {
-                    if (!MatchesMedia(rule.Media, width, height, orientation)) continue;
                     if (!SelectorMatches(rule.Selector, tag, id, className, node, this)) continue;
                     collected.Add((rule, MediaSpecificity(rule.Media), order++));
                 }
@@ -246,14 +248,17 @@ namespace VantaCSS
             }
 
             long pseudoKey = unchecked(HashText(HashText(HashText(GetStateKey(node), tag), id), className) * 31 + GetAncestorKey(node));
+            var __ts = GetTransitionState(node);
+            bool __transitionsActive = __ts != null && __ts.ActiveTransitions != null && __ts.ActiveTransitions.Count > 0;
             if (node._styleCacheValid &&
                 node._styleCacheW == width &&
                 node._styleCacheH == height &&
                 node._styleCacheO == orientation &&
-                node._styleCacheTime == time &&
                 node._styleCachePseudoKey == pseudoKey &&
-                node._styleCacheSheetVersion == _stylesheetVersion)
+                node._styleCacheSheetVersion == _stylesheetVersion &&
+                (!__transitionsActive || node._styleCacheTime == time))
             {
+                if (__transitionsActive) HasActiveTransitions = true;
                 return node._styleCacheResult;
             }
 
@@ -267,6 +272,10 @@ namespace VantaCSS
             var transitionSpecs = new List<CssTransition>();
 
             var matchingRules = GetMatchingRules(tag, id, className, node, width, height, orientation);
+            if (node?.Parent == null)
+                foreach (var r in matchingRules)
+                    if (r.Declarations.ContainsKey("display"))
+                        Console.WriteLine("ROOTDISP " + r.Selector + " => " + r.Declarations["display"]);
             // Global :root custom properties apply everywhere.
             foreach (var r in RootRules)
             {
@@ -279,6 +288,7 @@ namespace VantaCSS
             }
             foreach (var rule in matchingRules)
             {
+                if (!MatchesMedia(rule.Media, width, height, orientation)) continue;
                 string sel = rule.Selector ?? string.Empty;
                 bool isBefore = sel.IndexOf("::before", StringComparison.OrdinalIgnoreCase) >= 0;
                 bool isAfter = sel.IndexOf("::after", StringComparison.OrdinalIgnoreCase) >= 0;
@@ -309,16 +319,17 @@ namespace VantaCSS
                 }
             }
 
-            // Inherit CSS custom properties from parent.
+            // Inherit regular inheritable properties from the parent. Custom
+            // properties are deliberately *not* copied down: LookupVar already
+            // walks the parent chain on demand. Copying every custom property
+            // into every descendant is O(nodes * customProperties) and, with a
+            // stylesheet like Bootstrap (hundreds of --bs-* vars on :root),
+            // that alone dominates layout time and allocates huge dictionaries.
             if (node.Parent != null && node.Parent.ComputedStyles != null)
             {
                 foreach (var kv in node.Parent.ComputedStyles)
                 {
-                    if (kv.Key.StartsWith("--", StringComparison.Ordinal) && !target.ContainsKey(kv.Key))
-                        target[kv.Key] = kv.Value;
-                }
-                foreach (var kv in node.Parent.ComputedStyles)
-                {
+                    if (kv.Key.StartsWith("--", StringComparison.Ordinal)) continue;
                     if (IsInheritable(kv.Key) && !target.ContainsKey(kv.Key))
                         target[kv.Key] = kv.Value;
                 }
@@ -456,6 +467,7 @@ namespace VantaCSS
             st.Computed = new Dictionary<string, string>(computed, StringComparer.OrdinalIgnoreCase);
             st.Transitions = transitionSpecs;
             st.LastTime = time;
+            if (st.ActiveTransitions != null && st.ActiveTransitions.Count > 0) HasActiveTransitions = true;
 
             if (node != null) node.PseudoStyles = pseudoTargets;
 
@@ -549,16 +561,14 @@ namespace VantaCSS
             foreach (var declaration in root._parsedStyleDeclarations)
                 root.ComputedStyles[declaration.Property] = declaration.Value;
 
-            // Inherit CSS custom properties from parent.
+            // Inherit regular inheritable properties from the parent. Custom
+            // properties stay on the element that declared them and are found
+            // through the parent chain by ResolveVarValue/LookupVar.
             if (root.Parent != null && root.Parent.ComputedStyles != null)
             {
                 foreach (var kv in root.Parent.ComputedStyles)
                 {
-                    if (kv.Key.StartsWith("--", StringComparison.Ordinal) && !root.ComputedStyles.ContainsKey(kv.Key))
-                        root.ComputedStyles[kv.Key] = kv.Value;
-                }
-                foreach (var kv in root.Parent.ComputedStyles)
-                {
+                    if (kv.Key.StartsWith("--", StringComparison.Ordinal)) continue;
                     if (IsInheritable(kv.Key) && !root.ComputedStyles.ContainsKey(kv.Key))
                         root.ComputedStyles[kv.Key] = kv.Value;
                 }

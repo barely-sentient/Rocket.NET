@@ -74,6 +74,7 @@ namespace VantaCSS
             _layoutVw = width;
             _layoutVh = height;
             _layoutInProgress = true;
+            HasActiveTransitions = false;
             ApplyComputedStyles(root, width, height, orientation, time);
             _layoutInProgress = false;
             Layouts.Clear();
@@ -141,22 +142,10 @@ namespace VantaCSS
                 node.ComputedStyles = style;
             }
 
-            // Inherit CSS custom properties from the parent node.
-            if (node.Parent != null && node.Parent.ComputedStyles != null)
-            {
-                foreach (var kv in node.Parent.ComputedStyles)
-                {
-                    if (kv.Key.StartsWith("--", StringComparison.Ordinal) && !style.ContainsKey(kv.Key))
-                        style[kv.Key] = kv.Value;
-                }
-            }
-
-            // Resolve var() references in all values.
-            var styleKeys = new List<string>(style.Keys);
-            foreach (var k in styleKeys)
-            {
-                style[k] = ResolveVarValue(style[k], node);
-            }
+            // Styles (including resolved var() values and inherited regular
+            // properties) are already prepared by ApplyComputedStyles before
+            // layout starts. Re-inheriting custom properties and re-resolving
+            // every value here duplicated the entire style pass for every node.
 
             var margin = ParseEdges(style, "margin", slotBox.Width);
             var padding = ParseEdges(style, "padding", slotBox.Width);
@@ -697,6 +686,41 @@ namespace VantaCSS
             }
         }
 
+        // Distributes the free height of a column flex container between children
+        // with a positive flex-grow and no explicit height. Auto-height siblings are
+        // measured first so that they keep their space.
+        private double[] FlexGrowHeights(List<Node> list, double contentX, double contentY, double contentW, double contentH,
+            double gap, LayoutBox containingBlock, int vw, int vh)
+        {
+            var heights = new double[list.Count];
+            var grow = new double[list.Count];
+            double used = gap * Math.Max(0, list.Count - 1);
+            double growSum = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var cs = list[i].ComputedStyles;
+                var m = ParseEdges(cs, "margin", contentW);
+                used += m.t + m.b;
+                double fixedH = ParseLen(GetStyle(cs, "height"), contentH, vw, vh);
+                if (!double.IsNaN(fixedH)) { used += fixedH; continue; }
+                if (double.TryParse(GetStyle(cs, "flex-grow"), NumberStyles.Float, CultureInfo.InvariantCulture, out double g) && g > 0)
+                {
+                    grow[i] = g;
+                    growSum += g;
+                    continue;
+                }
+                var measured = LayoutNode(list[i], new LayoutBox { X = contentX, Y = contentY, Width = contentW, Height = contentH }, containingBlock, vw, vh);
+                used += measured?.Height ?? 0;
+            }
+            if (growSum > 0)
+            {
+                double free = Math.Max(0, contentH - used);
+                for (int i = 0; i < list.Count; i++)
+                    if (grow[i] > 0) heights[i] = free * grow[i] / growSum;
+            }
+            return heights;
+        }
+
         private void ArrangeFlexColumn(Node node, Node[] children, LayoutBox parentBox, double contentX, double contentY, double contentW, double contentH, double gap, LayoutBox containingBlock, int vw, int vh)
         {
             var style = node.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -728,8 +752,10 @@ namespace VantaCSS
 
             double y = contentY;
             double maxW = 0;
-            foreach (var c in list)
+            var growHeights = FlexGrowHeights(list, contentX, contentY, contentW, contentH, gap, containingBlock, vw, vh);
+            for (int idx = 0; idx < list.Count; idx++)
             {
+                var c = list[idx];
                 var cs = c.ComputedStyles;
                 var cmargin = ParseEdges(cs, "margin", contentW);
                 double w = ParseLen(GetStyle(cs, "width"), contentW, vw, vh);
@@ -737,6 +763,7 @@ namespace VantaCSS
                 if (w < 0) w = 0;
                 double h = ParseLen(GetStyle(cs, "height"), contentH, vw, vh);
                 if (double.IsNaN(h)) h = 0;
+                if (h <= 0 && growHeights[idx] > 0) h = growHeights[idx];
 
                 if (cs != null)
                 {
