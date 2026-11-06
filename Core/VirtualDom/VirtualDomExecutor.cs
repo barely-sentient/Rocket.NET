@@ -20,6 +20,7 @@ namespace Rocket.Core
         private IComponentRenderer _renderer;
         private Instance _rootInstance;
         private Node _rootComponentNode;
+        private Node _rootTemplateNode;
 
         private sealed class ComponentMeta
         {
@@ -57,7 +58,11 @@ namespace Rocket.Core
         /// <summary>Mounts (or re-mounts) the root node and returns the resolved node to draw, without drawing.</summary>
         public Node MountRoot(Node rootNode)
         {
-            if (rootNode != null) _rootComponentNode = rootNode;
+            if (rootNode != null)
+            {
+                _rootTemplateNode = CloneNode(rootNode);
+                _rootComponentNode = rootNode;
+            }
             var instance = MountOrUpdate(rootNode);
             var cur = instance;
             while (cur != null && cur.Child != null && cur.Child.VNode != null) cur = cur.Child;
@@ -79,8 +84,16 @@ namespace Rocket.Core
                 _hotReloadTypes = null;
             try
             {
-                if (_rootComponentNode == null) return null;
-                return MountRoot(_rootComponentNode);
+                Node template = _rootTemplateNode ?? _rootComponentNode;
+                if (template == null) return null;
+                Node rootToMount = CloneNode(template);
+                _rootComponentNode = rootToMount;
+                // Mount without overwriting the template.
+                var instance = MountOrUpdate(rootToMount);
+                var cur = instance;
+                while (cur != null && cur.Child != null && cur.Child.VNode != null) cur = cur.Child;
+                LastNodeToDraw = cur != null ? cur.VNode : null;
+                return LastNodeToDraw;
             }
             finally
             {
@@ -511,6 +524,46 @@ namespace Rocket.Core
             var type = node.GetType();
             var propsProperty = _nodePropsCache.GetOrAdd(type, t => t.GetProperty("Props"));
             return propsProperty?.GetValue(node);
+        }
+
+        /// <summary>
+        /// Deep-clones a node tree so the original template stays unmutated
+        /// across mount/refresh cycles.
+        /// </summary>
+        private static Node CloneNode(Node node)
+        {
+            if (node == null) return null;
+            var type = node.GetType();
+            Node[] children = (node.Children ?? Array.Empty<Node>())
+                .Select(CloneNode)
+                .ToArray();
+
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Node<>))
+            {
+                var propsType = type.GetGenericArguments()[0];
+                var propsProp = type.GetProperty("Props");
+                object props = propsProp != null ? propsProp.GetValue(node) : null;
+                object propsClone = props;
+                if (props != null)
+                {
+                    propsClone = Activator.CreateInstance(propsType);
+                    foreach (var pi in propsType.GetProperties())
+                    {
+                        if (pi.CanWrite) pi.SetValue(propsClone, pi.GetValue(props));
+                    }
+                    foreach (var fi in propsType.GetFields())
+                    {
+                        fi.SetValue(propsClone, fi.GetValue(props));
+                    }
+                }
+                var ctor = type.GetConstructor(new[] { typeof(Type), propsType, typeof(Node[]) });
+                if (ctor != null)
+                {
+                    return (Node)ctor.Invoke(new object[] { node.Type, propsClone, children });
+                }
+            }
+
+            return new Node(node.Type, children);
         }
 
         /// <summary>
