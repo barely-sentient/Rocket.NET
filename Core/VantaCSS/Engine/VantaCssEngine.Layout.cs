@@ -376,6 +376,7 @@ namespace VantaCSS
             // width
             string textContent = GetNodeTextContent(node);
             bool isInline = display == "inline" || display == "inline-block" || display == "inline-flex" || display == "inline-grid" || display == "inline-table";
+            bool isImage = node != null && node.Type != null && (node.Type.Name ?? "").IndexOf("Image", StringComparison.OrdinalIgnoreCase) >= 0;
 
             double w = ParseLen(GetStyle(style, "width"), containingW, vw, vh);
             bool autoW = double.IsNaN(w);
@@ -384,6 +385,11 @@ namespace VantaCSS
                 if (isAbs && !double.IsNaN(leftCss) && !double.IsNaN(rightCss))
                 {
                     w = containingW - leftCss - rightCss - margin.l - margin.r;
+                }
+                else if (isImage)
+                {
+                    var (iw, _) = GetImageDimensions(node);
+                    w = iw > 0 ? iw : 0;
                 }
                 else if (isInline && !string.IsNullOrEmpty(textContent))
                 {
@@ -403,6 +409,12 @@ namespace VantaCSS
                 if (isAbs && !double.IsNaN(topCss) && !double.IsNaN(bottomCss))
                 {
                     h = containingH - topCss - bottomCss - margin.t - margin.b;
+                    autoH = false;
+                }
+                else if (isImage)
+                {
+                    var (_, ih) = GetImageDimensions(node);
+                    h = ih > 0 ? ih : 0;
                     autoH = false;
                 }
                 else
@@ -1129,6 +1141,75 @@ namespace VantaCSS
         private double ParseLen(string v, double reference)
         {
             return ParseLen(v, reference, _layoutVw, _layoutVh);
+        }
+
+        private static (int W, int H) GetImageDimensions(Rocket.Core.DOM.Node node)
+        {
+            try
+            {
+                if (node?.UntypedProps == null) return (0, 0);
+                var t = node.UntypedProps.GetType();
+                var f = t.GetField("Src");
+                var p = t.GetProperty("Src");
+                string src = f?.GetValue(node.UntypedProps) as string ?? p?.GetValue(node.UntypedProps) as string;
+                if (string.IsNullOrWhiteSpace(src)) return (0, 0);
+
+                if (src.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                {
+                    int comma = src.IndexOf(',');
+                    string b64 = comma >= 0 ? src.Substring(comma + 1) : src;
+                    byte[] bytes = Convert.FromBase64String(b64.Trim());
+                    using (var ms = new System.IO.MemoryStream(bytes))
+                    using (var img = System.Drawing.Image.FromStream(ms))
+                    {
+                        return (img.Width, img.Height);
+                    }
+                }
+
+                string path = src;
+                if (!System.IO.Path.IsPathRooted(path))
+                {
+                    var rel = path.TrimStart('/', '\\');
+                    foreach (var baseDir in new[] { System.IO.Directory.GetCurrentDirectory(), System.AppContext.BaseDirectory })
+                    {
+                        try
+                        {
+                            var cand = System.IO.Path.Combine(baseDir, rel);
+                            if (System.IO.File.Exists(cand)) { path = cand; break; }
+                        }
+                        catch { }
+                    }
+                    if (!System.IO.File.Exists(path))
+                    {
+                        foreach (var baseDir in new[] { System.IO.Directory.GetCurrentDirectory(), System.AppContext.BaseDirectory })
+                        {
+                            try
+                            {
+                                var dir = new System.IO.DirectoryInfo(baseDir);
+                                while (dir != null)
+                                {
+                                    var cand = System.IO.Path.Combine(dir.FullName, rel);
+                                    if (System.IO.File.Exists(cand)) { path = cand; break; }
+                                    dir = dir.Parent;
+                                }
+                                if (System.IO.File.Exists(path)) break;
+                            }
+                            catch { }
+                        }
+                    }
+                }
+                if (System.IO.File.Exists(path))
+                {
+                    using (var img = System.Drawing.Image.FromFile(path))
+                    {
+                        return (img.Width, img.Height);
+                    }
+                }
+            }
+            catch
+            {
+            }
+            return (0, 0);
         }
     }
 }

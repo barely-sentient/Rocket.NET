@@ -78,6 +78,7 @@ dl { display: block; margin: 1em 0; }
 dt { display: block; }
 output { display: inline; }
 progress, meter { display: inline-block; }
+img, image { display: inline; width: auto; height: auto; }
 ";
         public int ViewportWidth { get; set; }
         public int ViewportHeight { get; set; }
