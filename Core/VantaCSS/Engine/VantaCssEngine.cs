@@ -48,6 +48,8 @@ button:hover { background-color: #e0e0e0; border-color: #606060; }
 button:active { border-style: inset; background-color: #c0c0c0; border-color: #404040; color: #000000; }
 button:disabled { color: #808080; background-color: #f0f0f0; border-color: #b0b0b0; }
 input, textarea, select { display: inline-block; margin: 0; padding: 4px; background-color: #ffffff; color: #000000; border: 2px inset #808080; border-radius: 2px; }
+input:disabled, textarea:disabled, select:disabled { color: #808080; background-color: #f0f0f0; border-color: #b0b0b0; }
+input::placeholder, textarea::placeholder { color: #757575; opacity: 1; }
 textarea { padding: 4px; }
 select { padding: 4px; }
 ul, ol, menu, dir { display: block; margin: 1em 0; padding-left: 40px; list-style-type: disc; }
