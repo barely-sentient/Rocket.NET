@@ -61,7 +61,8 @@ input, textarea, select { display: inline-block; margin: 0; padding: 4px; backgr
 input:disabled, textarea:disabled, select:disabled { color: #808080; background-color: #f0f0f0; border-color: #b0b0b0; }
 input::placeholder, textarea::placeholder { color: #757575; opacity: 1; }
 textarea { padding: 4px; }
-select { padding: 4px; }
+select { display: inline-block; width: 160px; height: 24px; padding: 1px 4px; font-size: 13px; }
+option { display: none; }
 ul, ol, menu, dir { display: block; margin: 1em 0; padding-left: 40px; list-style-type: disc; }
 ol { list-style-type: decimal; }
 li { display: list-item; }
