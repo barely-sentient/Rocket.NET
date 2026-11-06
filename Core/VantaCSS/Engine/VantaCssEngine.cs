@@ -39,9 +39,19 @@ namespace VantaCSS
 body { display: block; margin: 8px; }
 div, section, article, header, footer, main, nav, aside { display: block; }
 p { display: block; margin: 1em 0; }
+br { display: block; }
 heading { display: block; font-weight: bold; margin: 1em 0; }
 h1, h2, h3, h4, h5, h6 { display: block; font-weight: bold; }
-span, a, label, strong, em, b, i { display: inline; margin: 0; padding: 0; }
+span, a, label, strong, em, b, i, u, s, del, ins, mark, small, sub, sup, code, kbd, samp { display: inline; margin: 0; padding: 0; }
+strong, b { font-weight: bold; }
+em, i { font-style: italic; }
+u, ins { text-decoration: underline; }
+s, del { text-decoration: line-through; }
+mark { background-color: yellow; color: black; }
+small { font-size: smaller; }
+sub { vertical-align: sub; font-size: smaller; }
+sup { vertical-align: super; font-size: smaller; }
+code, kbd, samp, pre { font-family: monospace; }
 img, image { display: inline-block; }
 button { display: inline-block; margin: 0; padding: 4px 10px; background-color: #f0f0f0; color: #000000; border: 2px outset #808080; border-radius: 2px; cursor: default; text-align: center; font-size: 11px; }
 button:hover { background-color: #e0e0e0; border-color: #606060; }
@@ -649,6 +659,17 @@ img, image { display: inline; width: auto; height: auto; }
             case "ol": return normalizedTypeName == "olist";
             case "li": return normalizedTypeName == "listitem";
             case "hr": return normalizedTypeName == "hr";
+            case "u": return normalizedTypeName == "underline";
+            case "del": return normalizedTypeName == "del";
+            case "ins": return normalizedTypeName == "ins";
+            case "mark": return normalizedTypeName == "mark";
+            case "small": return normalizedTypeName == "small";
+            case "sub": return normalizedTypeName == "sub";
+            case "sup": return normalizedTypeName == "sup";
+            case "strong": return normalizedTypeName == "strong";
+            case "em": return normalizedTypeName == "em";
+            case "code": return normalizedTypeName == "code";
+            case "pre": return normalizedTypeName == "pre";
             default: return false;
         }
     }
