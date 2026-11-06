@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Rocket.Core.DOM;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -37,6 +37,8 @@ namespace VantaCSS
             });
         }
 
+        private const int MaxRuleMatchCacheEntries = 1024;
+
         private readonly ConcurrentDictionary<string, List<CssRule>> _ruleMatchCache =
             new ConcurrentDictionary<string, List<CssRule>>();
 
@@ -48,6 +50,7 @@ namespace VantaCSS
             string ancestorKey = GetAncestorKey(node);
             string key = $"{tag}|{id}|{className}|{width}|{height}|{orientation}|{pseudoKey}|{ancestorKey}|{Stylesheets.Count}|{_stylesheetVersion}";
 
+            if (_ruleMatchCache.Count >= MaxRuleMatchCacheEntries) _ruleMatchCache.Clear();
             return _ruleMatchCache.GetOrAdd(key, _ => BuildMatchingRules(tag, id, className, node, width, height, orientation));
         }
 
@@ -68,7 +71,7 @@ namespace VantaCSS
 
         private List<CssRule> BuildMatchingRules(string tag, string id, string className, Node node, int width, int height, Orientation orientation)
         {
-            var collected = new List<(CssRule rule, int order)>();
+            var collected = new List<(CssRule rule, int specificity, int order)>();
             int order = 0;
             foreach (var sheet in Stylesheets)
             {
@@ -76,41 +79,38 @@ namespace VantaCSS
                 {
                     if (!MatchesMedia(rule.Media, width, height, orientation)) continue;
                     if (!SelectorMatches(rule.Selector, tag, id, className, node, this)) continue;
-                    collected.Add((rule, order++));
+                    collected.Add((rule, MediaSpecificity(rule.Media), order++));
                 }
             }
             // Order-independent media-query precedence: more specific (narrower) media
             // queries win over broader ones regardless of source order.
-            return collected
-                .OrderBy(x => MediaSpecificity(x.rule.Media))
-                .ThenBy(x => x.order)
-                .Select(x => x.rule)
-                .ToList();
+            collected.Sort((a, b) => a.specificity != b.specificity
+                ? a.specificity.CompareTo(b.specificity)
+                : a.order.CompareTo(b.order));
+            var result = new List<CssRule>(collected.Count);
+            foreach (var x in collected) result.Add(x.rule);
+            return result;
         }
 
-        private static int MediaSpecificity(string media)
+        private int MediaSpecificity(string media)
         {
             if (string.IsNullOrWhiteSpace(media)) return 0;
-            string m = media.ToLowerInvariant();
+            var queries = VantaCSS.Grammar.Grammar.ParseMediaQueries(media);
+            if (queries == null) return 0;
             int score = 0;
-            // max-width: smaller => more specific
-            foreach (System.Text.RegularExpressions.Match mx in System.Text.RegularExpressions.Regex.Matches(m, @"max-width\s*:\s*(\d+)"))
+            // max-*: smaller => more specific. min-*: larger => more specific.
+            foreach (var query in queries)
             {
-                if (int.TryParse(mx.Groups[1].Value, out int v)) score += 10000 - v;
-            }
-            // min-width: larger => more specific
-            foreach (System.Text.RegularExpressions.Match mn in System.Text.RegularExpressions.Regex.Matches(m, @"min-width\s*:\s*(\d+)"))
-            {
-                if (int.TryParse(mn.Groups[1].Value, out int v)) score += v;
-            }
-            // max-height / min-height
-            foreach (System.Text.RegularExpressions.Match mx in System.Text.RegularExpressions.Regex.Matches(m, @"max-height\s*:\s*(\d+)"))
-            {
-                if (int.TryParse(mx.Groups[1].Value, out int v)) score += 10000 - v;
-            }
-            foreach (System.Text.RegularExpressions.Match mn in System.Text.RegularExpressions.Regex.Matches(m, @"min-height\s*:\s*(\d+)"))
-            {
-                if (int.TryParse(mn.Groups[1].Value, out int v)) score += v;
+                foreach (var feature in query.Features)
+                {
+                    bool isMax = feature.Name == "max-width" || feature.Name == "max-height";
+                    bool isMin = feature.Name == "min-width" || feature.Name == "min-height";
+                    if (!isMax && !isMin) continue;
+                    double px = ParseLen(feature.Value, 0);
+                    if (double.IsNaN(px)) continue;
+                    int v = (int)px;
+                    score += isMax ? 10000 - v : v;
+                }
             }
             return score;
         }
@@ -243,21 +243,6 @@ namespace VantaCSS
 
             // Manage transition state.
             var st = GetTransitionState(node);
-            if (st == null) 
-            {
-                // No state tracking possible; just return target string.
-                if (node != null) node.PseudoStyles = pseudoTargets;
-                var r = DictToString(target);
-                node._styleCacheW = width;
-                node._styleCacheH = height;
-                node._styleCacheO = orientation;
-                node._styleCacheTime = time;
-                node._styleCachePseudoKey = pseudoKey;
-                node._styleCacheResult = r;
-                node._styleCacheSheetVersion = _stylesheetVersion;
-                node._styleCacheValid = true;
-                return r;
-            }
 
             var oldTarget = st.Target;
             var oldComputed = st.Computed;
@@ -392,20 +377,12 @@ namespace VantaCSS
             return result;
         }
 
-        public string ComputeStyle(Rocket.Core.DOM.Node node, int width, int height, Orientation orientation, TimeSpan time)
-        {
-            return ComputeStyle(node, width, height, orientation, time.TotalSeconds);
-        }
 
         public string ComputeStyle(Rocket.Core.DOM.Node node, double time)
         {
             return ComputeStyle(node, ViewportWidth, ViewportHeight, Orientation, time);
         }
 
-        public string ComputeStyle(Rocket.Core.DOM.Node node, TimeSpan time)
-        {
-            return ComputeStyle(node, ViewportWidth, ViewportHeight, Orientation, time.TotalSeconds);
-        }
 
         // Pseudo-state convenience overloads.
         public string ComputeStyle(Rocket.Core.DOM.Node node, string pseudoState)
@@ -432,26 +409,14 @@ namespace VantaCSS
             return ComputeStyles(node);
         }
 
-        public string ComputeStyle(Rocket.Core.DOM.Node node, int width, int height, Orientation orientation, int timeMs)
-        {
-            return ComputeStyle(node, width, height, orientation, timeMs / 1000.0);
-        }
 
         // Time-aware ComputeStyles
         public Dictionary<string, string> ComputeStyles(Rocket.Core.DOM.Node node, int width, int height, Orientation orientation, double time)
         {
             var style = ComputeStyle(node, width, height, orientation, time);
             var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var part in style.Split(';'))
-            {
-                var trimmed = part.Trim();
-                if (string.IsNullOrEmpty(trimmed)) continue;
-                var idx = trimmed.IndexOf(':');
-                if (idx > 0)
-                {
-                    dict[trimmed.Substring(0, idx).Trim()] = trimmed.Substring(idx + 1).Trim();
-                }
-            }
+            foreach (var declaration in VantaCSS.Grammar.Grammar.ParseDeclarations(style))
+                dict[declaration.Property] = declaration.Value;
             return dict;
         }
 
@@ -467,21 +432,10 @@ namespace VantaCSS
             _applyDepth++;
             var style = ComputeStyle(root, width, height, orientation, time);
             root.ComputedStyle = style;
-            root.ComputedCss = style;
             if (root.ComputedStyles == null) root.ComputedStyles = new Dictionary<string, string>();
             root.ComputedStyles.Clear();
-            foreach (var part in style.Split(';'))
-            {
-                var trimmed = part.Trim();
-                if (string.IsNullOrEmpty(trimmed)) continue;
-                var idx = trimmed.IndexOf(':');
-                if (idx > 0)
-                {
-                    var key = trimmed.Substring(0, idx).Trim();
-                    var val = trimmed.Substring(idx + 1).Trim();
-                    root.ComputedStyles[key] = val;
-                }
-            }
+            foreach (var declaration in VantaCSS.Grammar.Grammar.ParseDeclarations(style))
+                root.ComputedStyles[declaration.Property] = declaration.Value;
 
             // Inherit CSS custom properties from parent.
             if (root.Parent != null && root.Parent.ComputedStyles != null)
@@ -510,7 +464,6 @@ namespace VantaCSS
                 sb.Append(kv.Key).Append(": ").Append(kv.Value).Append("; ");
             }
             root.ComputedStyle = sb.ToString().Trim();
-            root.ComputedCss = root.ComputedStyle;
 
             foreach (var child in root.Children ?? Array.Empty<Rocket.Core.DOM.Node>())
             {
@@ -552,28 +505,6 @@ namespace VantaCSS
             CurrentTime = time;
             return BuildCss(ViewportWidth, ViewportHeight, Orientation);
         }
-        public string GenerateCss(int width, int height, Orientation orientation, TimeSpan time)
-        {
-            return GenerateCss(width, height, orientation, time.TotalSeconds);
-        }
-        public string Generate(int width, int height, Orientation orientation, double time) => GenerateCss(width, height, orientation, time);
-        public string Generate(double time) => GenerateCss(time);
-        public string GetCss(int width, int height, Orientation orientation, double time) => GenerateCss(width, height, orientation, time);
-        public string GetCss(double time) => GenerateCss(time);
-        public string BuildCss(int width, int height, Orientation orientation, double time) => GenerateCss(width, height, orientation, time);
-        public string BuildCss(double time) => GenerateCss(time);
 
-        private static string DictToString(Dictionary<string, string> dict)
-        {
-            var sb = new StringBuilder();
-            foreach (var kv in dict)
-            {
-                sb.Append(kv.Key);
-                sb.Append(": ");
-                sb.Append(kv.Value);
-                sb.Append("; ");
-            }
-            return sb.ToString().Trim();
-        }
     }
 }

@@ -26,38 +26,17 @@ namespace Rocket.Core
         public static IHotReloadTarget Current { get; set; }
 
         /// <summary>
-        /// Alias for <see cref="Current"/>.
-        /// </summary>
-        public static IHotReloadTarget CurrentTarget { get => Current; set => Current = value; }
-
-        /// <summary>
-        /// Alias for <see cref="Current"/>.
-        /// </summary>
-        public static IHotReloadTarget Target { get => Current; set => Current = value; }
-
-        /// <summary>
         /// The currently registered executor, used when no host is set.
         /// </summary>
         public static VirtualDomExecutor CurrentExecutor { get; set; }
-
-        /// <summary>
-        /// Alias for <see cref="CurrentExecutor"/>.
-        /// </summary>
-        public static VirtualDomExecutor Executor { get => CurrentExecutor; set => CurrentExecutor = value; }
 
         /// <summary>
         /// Optional fallback callback used when no <see cref="Current"/> host is set.
         /// </summary>
         public static Action<IEnumerable<Type>> HotReloadAction { get; set; }
 
-        /// <summary>
-        /// Alias for <see cref="HotReloadAction"/>.
-        /// </summary>
-        public static Action<IEnumerable<Type>> Handler { get => HotReloadAction; set => HotReloadAction = value; }
-
         public static void UpdateApplication(Type[] updatedTypes)
         {
-            Console.WriteLine($"[HotReload] UpdateApplication: {(updatedTypes == null ? "(null)" : string.Join(", ", (object[])updatedTypes))}");
             if (Current != null)
             {
                 Current.HotReloadComponents(updatedTypes);
@@ -81,14 +60,5 @@ namespace Rocket.Core
             UpdateApplication(updatedTypes == null ? null : updatedTypes.ToArray());
         }
 
-        public static void ClearCache(Type[] updatedTypes)
-        {
-            // No-op; keep hook/state caches as-is.
-        }
-
-        public static void ClearCache(IEnumerable<Type> updatedTypes)
-        {
-            ClearCache(updatedTypes == null ? null : updatedTypes.ToArray());
-        }
     }
 }

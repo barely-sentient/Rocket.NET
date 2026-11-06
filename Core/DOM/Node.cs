@@ -31,8 +31,25 @@ namespace Rocket.Core.DOM
             public FieldInfo Field;
         }
 
-        private static readonly ConcurrentDictionary<string, MemberRef> _memberRefCache =
-            new ConcurrentDictionary<string, MemberRef>();
+        private static readonly ConcurrentDictionary<(Type, string), MemberRef> _memberRefCache =
+            new ConcurrentDictionary<(Type, string), MemberRef>();
+
+        private static readonly Dictionary<string, string> _eventNameAliases =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Dblclick"] = "DblClick",
+                ["Mouseenter"] = "MouseEnter",
+                ["Mouseleave"] = "MouseLeave",
+                ["Mousedown"] = "MouseDown",
+                ["Mouseup"] = "MouseUp",
+                ["Mouseover"] = "MouseOver",
+                ["Mouseout"] = "MouseOut",
+                ["Mousemove"] = "MouseMove",
+                ["Keydown"] = "KeyDown",
+                ["Keyup"] = "KeyUp",
+                ["Keypress"] = "KeyPress",
+                ["Contextmenu"] = "ContextMenu"
+            };
 
         /// <summary>
         /// Computed CSS style string for this node at a given viewport.
@@ -51,43 +68,10 @@ namespace Rocket.Core.DOM
     public Dictionary<string, Dictionary<string, string>> PseudoStyles { get; set; } =
         new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>
-        /// Alias for <see cref="ComputedStyle"/>.
-        /// </summary>
-        public string ComputedCss { get => ComputedStyle; set => ComputedStyle = value; }
-
         // -----------------------------------------------------------------
         // Layout results computed by the CSS engine.
         // -----------------------------------------------------------------
-        private VantaCSS.LayoutBox _layout;
-        public VantaCSS.LayoutBox Layout { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox LayoutBox { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox LayoutBounds { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox LayoutFrame { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox LayoutRect { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox LayoutRectangle { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox RenderBounds { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox FrameBounds { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox ComputedLayout { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox BoxLayout { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox Box { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox Bounds { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox Rect { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox Rectangle { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox Frame { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox Position { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox LayoutInfo { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox LayoutResult { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox CssLayout { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox BoxModel { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox ComputedBox { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox ComputedBounds { get => _layout; set => _layout = value; }
-        public VantaCSS.LayoutBox ComputedRect { get => _layout; set => _layout = value; }
-
-        /// <summary>
-        /// Alias for <see cref="ComputedStyle"/>.
-        /// </summary>
-        public string Style { get; set; }
+        public VantaCSS.LayoutBox Layout { get; set; }
 
         /// <summary>
         /// Interaction state used by the CSS engine for pseudo-class matching.
@@ -100,14 +84,6 @@ namespace Rocket.Core.DOM
         public bool Checked { get; set; }
         public bool Disabled { get; set; }
         public bool Enabled { get; set; } = true;
-
-        // Alias properties for pseudo-state.
-        public bool IsHovered { get => Hovered; set => Hovered = value; }
-        public bool IsFocused { get => Focused; set => Focused = value; }
-        public bool IsActive { get => Active; set => Active = value; }
-        public bool IsVisited { get => Visited; set => Visited = value; }
-        public bool IsChecked { get => Checked; set => Checked = value; }
-        public bool IsDisabled { get => Disabled; set => Disabled = value; }
 
         /// <summary>
         /// Optional explicit pseudo-state string (e.g. "hover", "focus").
@@ -215,19 +191,7 @@ namespace Rocket.Core.DOM
             string pascal = eventName.Trim();
             if (pascal.Length > 0)
                 pascal = char.ToUpperInvariant(pascal[0]) + pascal.Substring(1);
-            // common aliases
-            if (string.Equals(pascal, "Dblclick", StringComparison.OrdinalIgnoreCase)) pascal = "DblClick";
-            if (string.Equals(pascal, "Mouseenter", StringComparison.OrdinalIgnoreCase)) pascal = "MouseEnter";
-            if (string.Equals(pascal, "Mouseleave", StringComparison.OrdinalIgnoreCase)) pascal = "MouseLeave";
-            if (string.Equals(pascal, "Mousedown", StringComparison.OrdinalIgnoreCase)) pascal = "MouseDown";
-            if (string.Equals(pascal, "Mouseup", StringComparison.OrdinalIgnoreCase)) pascal = "MouseUp";
-            if (string.Equals(pascal, "Mouseover", StringComparison.OrdinalIgnoreCase)) pascal = "MouseOver";
-            if (string.Equals(pascal, "Mouseout", StringComparison.OrdinalIgnoreCase)) pascal = "MouseOut";
-            if (string.Equals(pascal, "Mousemove", StringComparison.OrdinalIgnoreCase)) pascal = "MouseMove";
-            if (string.Equals(pascal, "Keydown", StringComparison.OrdinalIgnoreCase)) pascal = "KeyDown";
-            if (string.Equals(pascal, "Keyup", StringComparison.OrdinalIgnoreCase)) pascal = "KeyUp";
-            if (string.Equals(pascal, "Keypress", StringComparison.OrdinalIgnoreCase)) pascal = "KeyPress";
-            if (string.Equals(pascal, "Contextmenu", StringComparison.OrdinalIgnoreCase)) pascal = "ContextMenu";
+            if (_eventNameAliases.TryGetValue(pascal, out var aliased)) pascal = aliased;
 
             string propName = "On" + pascal;
 
@@ -235,11 +199,10 @@ namespace Rocket.Core.DOM
             {
                 var props = UntypedProps;
                 var t = props.GetType();
-                string cacheKey = t.FullName + "|" + propName;
-                var mr = _memberRefCache.GetOrAdd(cacheKey, _ => new MemberRef
+                var mr = _memberRefCache.GetOrAdd((t, propName), key => new MemberRef
                 {
-                    Property = t.GetProperty(propName),
-                    Field = t.GetField(propName)
+                    Property = key.Item1.GetProperty(key.Item2),
+                    Field = key.Item1.GetField(key.Item2)
                 });
 
                 object handler = mr.Property != null ? mr.Property.GetValue(props) : null;
@@ -337,6 +300,9 @@ namespace Rocket.Core.DOM
         public TProps Props { get; set; }
         public override object UntypedProps => Props;
 
+        private static readonly PropertyInfo[] DumpProperties =
+            typeof(TProps).GetProperties(BindingFlags.Instance | BindingFlags.Public);
+
         /// <summary>
         /// Initialises a component node with its type, properties, and
         /// optional child nodes.
@@ -375,9 +341,7 @@ namespace Rocket.Core.DOM
 
             builder.Append("\"props\": {");
 
-            var properties = typeof(TProps).GetProperties(
-                BindingFlags.Instance | BindingFlags.Public
-            );
+            var properties = DumpProperties;
 
             for (var i = 0; i < properties.Length; i++)
             {

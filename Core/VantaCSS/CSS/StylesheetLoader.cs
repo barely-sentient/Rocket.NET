@@ -168,12 +168,16 @@ namespace VantaCSS
             return false;
         }
 
+        private static readonly string[] SystemAssemblyPrefixes =
+        {
+            "System", "Microsoft", "mscorlib", "netstandard", "WindowsBase", "PresentationCore", "PresentationFramework"
+        };
+
         private static bool IsSystemAssembly(Assembly assembly)
         {
             if (assembly == null || assembly.IsDynamic) return true;
             var name = assembly.GetName().Name ?? string.Empty;
-            string[] prefixes = { "System", "Microsoft", "mscorlib", "netstandard", "WindowsBase", "PresentationCore", "PresentationFramework" };
-            foreach (var p in prefixes)
+            foreach (var p in SystemAssemblyPrefixes)
             {
                 if (name.Equals(p, StringComparison.OrdinalIgnoreCase)) return true;
                 if (name.StartsWith(p + ".", StringComparison.OrdinalIgnoreCase)) return true;

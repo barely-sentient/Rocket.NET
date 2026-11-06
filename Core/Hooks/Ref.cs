@@ -71,8 +71,6 @@ namespace Rocket.Core
         public Ref(T initial) { _current = initial; }
         /// <summary>The current mutable value.</summary>
         public T Current { get { return _current; } set { _current = value; } }
-        /// <summary>Alias for <see cref="Current"/>.</summary>
-        public T Value { get { return _current; } set { _current = value; } }
 
         /// <summary>
         /// Deconstructs the ref into its current value and a setter, enabling

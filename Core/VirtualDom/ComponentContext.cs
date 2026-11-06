@@ -43,12 +43,10 @@ namespace Rocket.Core
             return context.DefaultValue;
         }
 
-        public class ContextFrame
+        public struct ContextFrame
         {
             public object Context;
             public object Value;
         }
     }
-
-
 }

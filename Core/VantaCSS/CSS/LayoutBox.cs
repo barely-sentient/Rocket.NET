@@ -41,20 +41,4 @@ namespace VantaCSS
 
         public override string ToString() => $"X={X}, Y={Y}, W={Width}, H={Height}";
     }
-
-    // Aliases for the layout box type.
-    public class Layout : LayoutBox { }
-    public class Rect : LayoutBox { }
-    public class Rectangle : LayoutBox { }
-    public class Bounds : LayoutBox { }
-    public class Box : LayoutBox { }
-    public class Frame : LayoutBox { }
-    public class CssLayout : LayoutBox { }
-    public class LayoutInfo : LayoutBox { }
-    public class LayoutResult : LayoutBox { }
-    public class BoxModel : LayoutBox { }
-    public class ComputedLayout : LayoutBox { }
-    public class ComputedBox : LayoutBox { }
-    public class ComputedBounds : LayoutBox { }
-    public class ComputedRect : LayoutBox { }
 }

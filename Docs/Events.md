@@ -41,7 +41,6 @@ Events bubble up the node tree by default (`Bubbles = true`).
 | Method | Effect |
 | --- | --- |
 | `StopPropagation()` | Stops the event from bubbling to parent nodes. |
-| `PreventPropagation()` | Same effect as `StopPropagation()`. |
 | `PreventDefault()` | Marks the event as default-prevented. |
 
 ## Event types

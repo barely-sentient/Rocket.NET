@@ -10,9 +10,7 @@ namespace Rocket.Core
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Mirrors React's <c>useEffect</c>. The framework does not distinguish
-        /// between layout and passive effects, so <c>LayoutEffect</c> and
-        /// <c>InsertionEffect</c> are aliases.
+        /// Mirrors React's <c>useEffect</c>.
         /// </para>
         /// <para>
         /// <b>Tip:</b> Pass <c>null</c> dependencies to run once on mount; pass an
@@ -31,9 +29,7 @@ namespace Rocket.Core
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Mirrors React's <c>useEffect</c>. The framework does not distinguish
-        /// between layout and passive effects, so <c>LayoutEffect</c> and
-        /// <c>InsertionEffect</c> are aliases.
+        /// Mirrors React's <c>useEffect</c>.
         /// </para>
         /// <para>
         /// <b>Tip:</b> Pass <c>null</c> dependencies to run once on mount; pass an
@@ -71,13 +67,5 @@ namespace Rocket.Core
         public static void Effect(Action effect, object[] dependencies = null) => SideEffect(effect, dependencies);
         /// <summary>Short alias for <see cref="SideEffect(Func{Action}, object[])"/>.</summary>
         public static void Effect(Func<Action> effect, object[] dependencies = null) => SideEffect(effect, dependencies);
-        /// <summary>Alias for <see cref="SideEffect(Action, object[])"/> (no separate layout phase).</summary>
-        public static void LayoutEffect(Action effect, object[] dependencies = null) => SideEffect(effect, dependencies);
-        /// <summary>Alias for <see cref="SideEffect(Func{Action}, object[])"/> (no separate layout phase).</summary>
-        public static void LayoutEffect(Func<Action> effect, object[] dependencies = null) => SideEffect(effect, dependencies);
-        /// <summary>Alias for <see cref="SideEffect(Action, object[])"/> (no separate insertion phase).</summary>
-        public static void InsertionEffect(Action effect, object[] dependencies = null) => SideEffect(effect, dependencies);
-        /// <summary>Alias for <see cref="SideEffect(Func{Action}, object[])"/> (no separate insertion phase).</summary>
-        public static void InsertionEffect(Func<Action> effect, object[] dependencies = null) => SideEffect(effect, dependencies);
     }
 }

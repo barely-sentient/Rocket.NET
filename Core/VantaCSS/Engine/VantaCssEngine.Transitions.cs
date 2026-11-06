@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using Rocket.Core.DOM;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace VantaCSS
@@ -53,8 +54,8 @@ namespace VantaCSS
 
     public partial class VantaCssEngine
     {
-        private readonly Dictionary<Node, NodeTransitionState> _transitionStates =
-            new Dictionary<Node, NodeTransitionState>();
+        private ConditionalWeakTable<Node, NodeTransitionState> _transitionStates =
+            new ConditionalWeakTable<Node, NodeTransitionState>();
 
         /// <summary>Gets or creates transition bookkeeping for a node.</summary>
         public NodeTransitionState GetTransitionState(Node node)
@@ -63,7 +64,7 @@ namespace VantaCSS
             if (!_transitionStates.TryGetValue(node, out var st))
             {
                 st = new NodeTransitionState { Node = node, LastTime = CurrentTime };
-                _transitionStates[node] = st;
+                _transitionStates.Add(node, st);
             }
             return st;
         }
@@ -71,7 +72,7 @@ namespace VantaCSS
         /// <summary>Clears all transition state.</summary>
         public void ClearTransitions()
         {
-            _transitionStates.Clear();
+            _transitionStates = new ConditionalWeakTable<Node, NodeTransitionState>();
         }
 
         /// <summary>Removes transition state for a node.</summary>
@@ -85,13 +86,13 @@ namespace VantaCSS
         {
             if (string.IsNullOrWhiteSpace(value)) return 0;
             value = value.Trim().ToLowerInvariant();
-            if (value.EndsWith("ms"))
+            if (value.EndsWith("ms", StringComparison.Ordinal))
             {
                 var n = value.Substring(0, value.Length - 2).Trim();
                 double.TryParse(n, NumberStyles.Float, CultureInfo.InvariantCulture, out double ms);
                 return ms / 1000.0;
             }
-            if (value.EndsWith("s"))
+            if (value.EndsWith("s", StringComparison.Ordinal))
             {
                 var n = value.Substring(0, value.Length - 1).Trim();
                 double.TryParse(n, NumberStyles.Float, CultureInfo.InvariantCulture, out double s);
@@ -117,42 +118,15 @@ namespace VantaCSS
             if (decls.TryGetValue("transition", out var sh))
             {
                 // shorthand may contain multiple comma-separated transitions.
-                foreach (var part in sh.Split(','))
+                foreach (var spec in VantaCSS.Grammar.Grammar.ParseTransitionList(sh))
                 {
-                    var toks = part.Trim().Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                    var t = new CssTransition();
-                    foreach (var tok in toks)
+                    result.Add(new CssTransition
                     {
-                        if (tok.Equals("all", StringComparison.OrdinalIgnoreCase) ||
-                            tok.Equals("none", StringComparison.OrdinalIgnoreCase) ||
-                            !IsTimeToken(tok) && !IsTimingToken(tok))
-                        {
-                            // property if not time/timing
-                            if (!IsTimeToken(tok) && !IsTimingToken(tok))
-                            {
-                                t.Property = tok;
-                                continue;
-                            }
-                        }
-                        if (IsTimeToken(tok))
-                        {
-                            if (t.Duration == 0 && dur == null) { t.Duration = ParseTime(tok); }
-                            else if (t.Delay == 0) { t.Delay = ParseTime(tok); }
-                            else { /* keep first */ }
-                            continue;
-                        }
-                        if (IsTimingToken(tok))
-                        {
-                            t.TimingFunction = tok;
-                            continue;
-                        }
-                    }
-                    if (t.Duration == 0 && dur != null) t.Duration = ParseTime(dur);
-                    if (t.Delay == 0 && delay != null) t.Delay = ParseTime(delay);
-                    if (string.IsNullOrEmpty(t.Property) && prop != null) t.Property = prop;
-                    if (string.IsNullOrEmpty(t.TimingFunction) && timing != null) t.TimingFunction = timing;
-                    if (string.IsNullOrEmpty(t.Property)) t.Property = "all";
-                    result.Add(t);
+                        Property = spec.Property ?? prop ?? "all",
+                        Duration = ParseTime(spec.Duration ?? dur),
+                        Delay = ParseTime(spec.Delay ?? delay),
+                        TimingFunction = spec.Timing ?? timing ?? "ease"
+                    });
                 }
                 return result;
             }
@@ -172,19 +146,6 @@ namespace VantaCSS
             return result;
         }
 
-        private static bool IsTimeToken(string tok)
-        {
-            tok = tok.Trim().ToLowerInvariant();
-            return tok.EndsWith("s") || tok.EndsWith("ms") || double.TryParse(tok, NumberStyles.Float, CultureInfo.InvariantCulture, out _);
-        }
-
-        private static bool IsTimingToken(string tok)
-        {
-            tok = tok.Trim().ToLowerInvariant();
-            return tok == "linear" || tok == "ease" || tok == "ease-in" || tok == "ease-out" ||
-                   tok == "ease-in-out" || tok.StartsWith("cubic-bezier");
-        }
-
         /// <summary>Evaluates a timing function, returning eased progress for linear input p in [0,1].</summary>
         public static double Ease(string timing, double p)
         {
@@ -199,7 +160,7 @@ namespace VantaCSS
                 case "ease-out": return CubicBezier(0, 0, 0.58, 1.0, p);
                 case "ease-in-out": return CubicBezier(0.42, 0, 0.58, 1.0, p);
             }
-            if (timing.StartsWith("cubic-bezier"))
+            if (timing.StartsWith("cubic-bezier", StringComparison.Ordinal))
             {
                 var nums = timing.Replace("cubic-bezier", "").Trim('(', ')', ' ').Split(',');
                 if (nums.Length == 4 &&
@@ -319,30 +280,20 @@ namespace VantaCSS
                 return true;
             }
 
-            var parts = value.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-            var nums = new List<double>();
-            var colorTokens = new List<string>();
-            bool inColor = false;
-            foreach (var p in parts)
+            var shadows = VantaCSS.Grammar.Grammar.ParseTextShadows(value);
+            if (shadows == null || shadows.Count == 0) return false;
+            var shadow = shadows[0];
+            if (!TryParseShadowLength(shadow.X, out double x) ||
+                !TryParseShadowLength(shadow.Y, out double y) ||
+                !TryParseShadowLength(shadow.Blur, out double blur))
             {
-                if (!inColor && TryParseNumber(p, out double n, out string u) &&
-                    (string.IsNullOrEmpty(u) || u.Equals("px", StringComparison.OrdinalIgnoreCase)))
-                {
-                    nums.Add(n);
-                }
-                else
-                {
-                    inColor = true;
-                    colorTokens.Add(p);
-                }
+                return false;
             }
-            if (nums.Count < 2) return false;
-            while (nums.Count < 3) nums.Add(0);
-            info.X = nums[0];
-            info.Y = nums[1];
-            info.Blur = nums[2];
+            info.X = x;
+            info.Y = y;
+            info.Blur = blur;
 
-            string colorStr = colorTokens.Count > 0 ? string.Join(" ", colorTokens) : "transparent";
+            string colorStr = shadow.Color ?? "transparent";
             if (colorStr.Equals("transparent", StringComparison.OrdinalIgnoreCase))
             {
                 info.Color = new Color { r = 0, g = 0, b = 0, a = 0 };
@@ -357,6 +308,13 @@ namespace VantaCSS
                 info.Color = new Color { r = 255, g = 255, b = 255, a = 1 };
             }
             return true;
+        }
+
+        private static bool TryParseShadowLength(string text, out double value)
+        {
+            value = 0;
+            return text != null && TryParseNumber(text, out value, out string unit) &&
+                   (string.IsNullOrEmpty(unit) || unit.Equals("px", StringComparison.OrdinalIgnoreCase));
         }
 
         private static Color InterpolateColor(Color c1, Color c2, double progress)
@@ -378,7 +336,7 @@ namespace VantaCSS
             if (string.IsNullOrWhiteSpace(value)) return false;
             value = value.Trim().ToLowerInvariant();
 
-            if (value.StartsWith("#"))
+            if (value.StartsWith("#", StringComparison.Ordinal))
             {
                 string hex = value.Substring(1);
                 if (hex.Length == 3)
@@ -404,7 +362,7 @@ namespace VantaCSS
                 return false;
             }
 
-            if (value.StartsWith("rgb"))
+            if (value.StartsWith("rgb", StringComparison.Ordinal))
             {
                 int open = value.IndexOf('(');
                 int close = value.IndexOf(')', open);

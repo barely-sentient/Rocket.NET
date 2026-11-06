@@ -1,4 +1,4 @@
-﻿using System.Collections;
+﻿﻿using System.Collections;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Reflection;
@@ -129,7 +129,7 @@ public class HtmlRenderer : IComponentRenderer
             _ => value.ToString() ?? string.Empty
         };
 
-        string attrName = name == "ClassName" ? "class" : ToKebabCase(name);
+        string attrName = AttrName(name);
 
         builder.Append(' ')
                .Append(attrName)
@@ -137,6 +137,11 @@ public class HtmlRenderer : IComponentRenderer
                .Append(WebUtility.HtmlEncode(text))
                .Append('"');
     }
+
+    private static readonly ConcurrentDictionary<string, string> _attrNames = new ConcurrentDictionary<string, string>();
+
+    private static string AttrName(string name) =>
+        _attrNames.GetOrAdd(name, n => n == "ClassName" ? "class" : ToKebabCase(n));
 
     private static string ToKebabCase(string name)
     {

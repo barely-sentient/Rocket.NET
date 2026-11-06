@@ -37,16 +37,4 @@ namespace VantaCSS
             Path = path;
         }
     }
-
-    /// <summary>Alias for <see cref="StylesheetAttribute"/>.</summary>
-    public class StyleSheetAttribute : StylesheetAttribute
-    {
-        public StyleSheetAttribute(string path) : base(path) { }
-    }
-
-    /// <summary>Alias for <see cref="StylesheetAttribute"/>.</summary>
-    public class CSSStylesheetAttribute : StylesheetAttribute
-    {
-        public CSSStylesheetAttribute(string path) : base(path) { }
-    }
 }

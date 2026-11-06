@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace VantaCSS
 {
@@ -12,8 +11,6 @@ namespace VantaCSS
         public string Name { get; set; }
         public List<CssRule> Rules { get; set; } = new List<CssRule>();
         public string RawCss { get; set; }
-        public string Css { get => RawCss; set => RawCss = value; }
-        public string Content { get => RawCss; set => RawCss = value; }
 
         public Stylesheet() { }
 
@@ -40,73 +37,35 @@ namespace VantaCSS
             }
         }
 
+        /// <summary>
+        /// Parses CSS source into a stylesheet using the VantaCSS grammar.
+        /// </summary>
         public static Stylesheet FromCss(string css)
         {
-            var sheet = new Stylesheet();
-            sheet.RawCss = css;
+            var sheet = new Stylesheet { RawCss = css };
             if (string.IsNullOrWhiteSpace(css)) return sheet;
-            css = css.Trim();
-            int i = 0;
-            while (i < css.Length)
-            {
-                while (i < css.Length && char.IsWhiteSpace(css[i])) i++;
-                if (i >= css.Length) break;
 
-                if (css[i] == '@')
+            foreach (var parsed in VantaCSS.Grammar.Grammar.ParseRules(css))
+            {
+                if (!parsed.IsAtRule)
                 {
-                    int mediaStart = css.IndexOf('{', i);
-                    if (mediaStart < 0) break;
-                    string mediaHeader = css.Substring(i, mediaStart - i).Trim();
-                    int depth = 0;
-                    int j = mediaStart;
-                    for (; j < css.Length; j++)
-                    {
-                        if (css[j] == '{') depth++;
-                        else if (css[j] == '}') { depth--; if (depth == 0) break; }
-                    }
-                    string inner = css.Substring(mediaStart + 1, j - mediaStart - 1);
-                    string condition = mediaHeader;
-                    if (condition.StartsWith("@media", StringComparison.OrdinalIgnoreCase))
-                        condition = condition.Substring(6).Trim();
-                    ParseRules(inner, sheet, condition);
-                    i = j + 1;
+                    sheet.Rules.Add(ToRule(parsed, null));
+                    continue;
                 }
-                else
-                {
-                    int brace = css.IndexOf('{', i);
-                    if (brace < 0) break;
-                    int close = css.IndexOf('}', brace);
-                    if (close < 0) break;
-                    string selector = css.Substring(i, brace - i).Trim();
-                    string decls = css.Substring(brace + 1, close - brace - 1).Trim();
-                    var rule = new CssRule(selector, decls);
-                    sheet.Rules.Add(rule);
-                    i = close + 1;
-                }
+
+                // At-rules without a block (for example @import) carry no style rules.
+                if (parsed.Rules == null) continue;
+                foreach (var nested in parsed.Rules)
+                    sheet.Rules.Add(ToRule(nested, parsed.Media));
             }
             return sheet;
         }
 
-        private static void ParseRules(string css, Stylesheet sheet, string media)
+        private static CssRule ToRule(VantaCSS.Grammar.CssRule source, string media)
         {
-            int i = 0;
-            while (i < css.Length)
-            {
-                while (i < css.Length && char.IsWhiteSpace(css[i])) i++;
-                if (i >= css.Length) break;
-                int brace = css.IndexOf('{', i);
-                if (brace < 0) break;
-                int close = css.IndexOf('}', brace);
-                if (close < 0) break;
-                string selector = css.Substring(i, brace - i).Trim();
-                string decls = css.Substring(brace + 1, close - brace - 1).Trim();
-                if (!string.IsNullOrEmpty(selector))
-                {
-                    var rule = new CssRule(selector, decls) { Media = media };
-                    sheet.Rules.Add(rule);
-                }
-                i = close + 1;
-            }
+            var rule = new CssRule { Selector = source.Selector, Media = media, Raw = source.Raw };
+            foreach (var declaration in source.Declarations) rule.Declarations[declaration.Property] = declaration.Value;
+            return rule;
         }
 
         public void AddRule(string selector, string declarations, string media = null)
@@ -114,14 +73,4 @@ namespace VantaCSS
             Rules.Add(new CssRule(selector, declarations) { Media = media });
         }
     }
-
-    /// <summary>
-    /// Alias for <see cref="Stylesheet"/>.
-    /// </summary>
-    public class StyleSheet : Stylesheet { }
-
-    /// <summary>
-    /// CSS stylesheet alias (all caps).
-    /// </summary>
-    public class CSSStylesheet : Stylesheet { }
 }

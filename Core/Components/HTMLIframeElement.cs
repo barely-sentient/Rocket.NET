@@ -35,16 +35,5 @@ namespace Rocket.Core
             return new Node<HTMLIframeElementProps>(typeof(HTMLIframeElement), props, children);
         }
 
-        /// <summary>
-        /// Shorthand method to render a IFrame element
-        /// </summary>
-        /// <param name="props"></param>
-        /// <param name="children"></param>
-        /// <returns></returns>
-        public static Node<HTMLIframeElementProps> IFrame(HTMLIframeElementProps props, params Node[] children)
-        {
-            return new Node<HTMLIframeElementProps>(typeof(HTMLIframeElement), props, children);
-        }
-
     }
 }

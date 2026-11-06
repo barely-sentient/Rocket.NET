@@ -284,7 +284,6 @@ namespace Tests
             var second = Ref(999);
             Assert.Same(first, second);
             Assert.Equal(42, second.Current);
-            Assert.Equal(42, second.Value);
 
             ComponentContext.CurrentInstance = null;
         }
