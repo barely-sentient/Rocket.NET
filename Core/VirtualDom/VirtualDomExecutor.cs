@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using Rocket.Core.DOM;
@@ -68,13 +69,57 @@ namespace Rocket.Core
         /// Re-runs the mounted component tree (preserving hook state) and
         /// returns the resolved node to draw. Used for state-driven updates.
         /// </summary>
-        public Node Refresh()
+        private HashSet<Type> _hotReloadTypes;
+
+        public Node Refresh(IEnumerable<Type> updatedTypes = null)
         {
-            if (_rootComponentNode == null) return null;
-            return MountRoot(_rootComponentNode);
+            if (updatedTypes != null)
+                _hotReloadTypes = new HashSet<Type>(updatedTypes);
+            else
+                _hotReloadTypes = null;
+            try
+            {
+                if (_rootComponentNode == null) return null;
+                return MountRoot(_rootComponentNode);
+            }
+            finally
+            {
+                _hotReloadTypes = null;
+            }
+        }
+
+        public Node Refresh() => Refresh(null);
+
+        /// <summary>
+        /// Replaces (or adds) a stylesheet by name and invalidates cached styles.
+        /// Used for CSS hot reload.
+        /// </summary>
+        public void ReloadStylesheet(string name, string css)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return;
+            var sheet = Stylesheets.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.Ordinal));
+            if (sheet == null)
+            {
+                sheet = new Stylesheet(name);
+                Stylesheets.Add(sheet);
+            }
+            sheet.ReloadCss(css);
+            CssEngine?.InvalidateStyleCache();
+        }
+
+        public bool IsHotReloadType(Type type)
+        {
+            if (_hotReloadTypes == null || type == null) return false;
+            foreach (var t in _hotReloadTypes)
+            {
+                if (t == type) return true;
+                try { if (t.IsAssignableFrom(type) || type.IsAssignableFrom(t)) return true; } catch { }
+            }
+            return false;
         }
 
         public Node RootComponentNode => _rootComponentNode;
+        public Instance RootInstance => _rootInstance;
         public VantaCSS.VantaCssEngine CssEngine { get; set; } = new VantaCSS.VantaCssEngine();
 
         public VirtualDomExecutor(IComponentRenderer renderer)
@@ -152,10 +197,11 @@ namespace Rocket.Core
         {
             if (node == null) return null;
 
-            if (_rootInstance == null || !Compatible(_rootInstance, node))
+            if (_rootInstance == null || !Compatible(_rootInstance, node) || IsHotReloadType(node.Type))
             {
                 if (_rootInstance != null) Unmount(_rootInstance);
                 _rootInstance = Mount(node);
+                if (_rootInstance != null) _rootInstance.Parent = null;
                 return _rootInstance;
             }
 
@@ -205,8 +251,12 @@ namespace Rocket.Core
                 if (isProvider) ((IContextProvider)component).PushContext();
 
                 instance.Child = Mount(renderedNode);
-                if (instance.Child != null && instance.Child.VNode != null)
-                    instance.Child.VNode.Parent = node;
+                if (instance.Child != null)
+                {
+                    instance.Child.Parent = instance;
+                    if (instance.Child.VNode != null)
+                        instance.Child.VNode.Parent = node;
+                }
 
                 if (isProvider) ((IContextProvider)component).PopContext();
                 // Add rendered children
@@ -231,6 +281,7 @@ namespace Rocket.Core
             {
                 var mounted = Mount(child);
                 if (mounted == null) continue;
+                mounted.Parent = host;
                 host.Children.Add(mounted);
                 // Splice composite components' rendered output into the host tree
                 // so the renderer draws the resolved nodes instead of component nodes.
@@ -258,6 +309,8 @@ namespace Rocket.Core
 
             if (meta.IsComposite)
             {
+                if (IsHotReloadType(type)) instance.ClearHooks();
+
                 object component = instance.ComponentInstance;
                 SetComponentProps(component, meta, CastProps(meta, GetNodeProps(node)));
                 SetComponentChildren(component, meta, node.Children);
@@ -272,7 +325,7 @@ namespace Rocket.Core
                 bool isProvider = component is IContextProvider;
                 if (isProvider) ((IContextProvider)component).PushContext();
 
-                if (instance.Child == null || !Compatible(instance.Child, renderedNode))
+                if (instance.Child == null || !Compatible(instance.Child, renderedNode) || IsHotReloadType(type))
                 {
                     if (instance.Child != null) Unmount(instance.Child);
                     instance.Child = Mount(renderedNode);
@@ -282,8 +335,12 @@ namespace Rocket.Core
                     UpdateInstance(instance.Child, renderedNode);
                 }
 
-                if (instance.Child != null && instance.Child.VNode != null)
-                    instance.Child.VNode.Parent = node;
+                if (instance.Child != null)
+                {
+                    instance.Child.Parent = instance;
+                    if (instance.Child.VNode != null)
+                        instance.Child.VNode.Parent = node;
+                }
 
                 if (isProvider) ((IContextProvider)component).PopContext();
 
@@ -304,7 +361,7 @@ namespace Rocket.Core
                     var childNode = newChildren[i];
                     Instance childInst = (i < oldCount) ? instance.Children[i] : null;
 
-                    if (childInst != null && Compatible(childInst, childNode))
+                    if (childInst != null && Compatible(childInst, childNode) && !IsHotReloadType(childNode.Type))
                     {
                         UpdateInstance(childInst, childNode);
                     }
@@ -314,6 +371,7 @@ namespace Rocket.Core
                         childInst = Mount(childNode);
                     }
 
+                    if (childInst != null) childInst.Parent = instance;
                     var curInst = childInst;
                     while (curInst != null && curInst.Child != null && curInst.Child.VNode != null)
                         curInst = curInst.Child;

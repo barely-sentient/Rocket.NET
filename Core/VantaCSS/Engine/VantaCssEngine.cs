@@ -118,6 +118,8 @@ progress, meter { display: inline-block; }
         }
 
         private int _stylesheetVersion;
+        public int StylesheetVersion => _stylesheetVersion;
+        public void InvalidateStyleCache() { _stylesheetVersion++; }
 
         private void EnsureDefaults()
         {

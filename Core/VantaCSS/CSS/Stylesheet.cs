@@ -22,9 +22,22 @@ namespace VantaCSS
         public Stylesheet(string name, string css)
         {
             Name = name;
-            RawCss = css;
-            if (!string.IsNullOrWhiteSpace(css))
-                Rules = Stylesheet.FromCss(css).Rules;
+            ReloadCss(css);
+        }
+
+        /// <summary>
+        /// Replaces the stylesheet's CSS and re-parses its rules. Used by hot reload.
+        /// </summary>
+        public void ReloadCss(string css)
+        {
+            RawCss = css ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(css))
+                Rules = new List<CssRule>();
+            else
+            {
+                try { Rules = Stylesheet.FromCss(css).Rules; }
+                catch { Rules = Rules ?? new List<CssRule>(); }
+            }
         }
 
         public static Stylesheet FromCss(string css)
