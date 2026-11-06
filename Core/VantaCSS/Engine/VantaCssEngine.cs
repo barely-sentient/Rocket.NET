@@ -26,11 +26,34 @@ namespace VantaCSS
             }
             set
             {
-                _stylesheets.Clear();
-                _defaultsAdded = false;
                 EnsureDefaults();
+                if (SameUserSheets(value)) return;
+                _stylesheets.Clear();
+                _stylesheets.Add(DefaultStylesheet);
                 if (value != null) _stylesheets.AddRange(value);
                 _stylesheetVersion++;
+            }
+        }
+
+        private bool SameUserSheets(List<Stylesheet> value)
+        {
+            int count = value?.Count ?? 0;
+            if (_stylesheets.Count != count + 1) return false;
+            if (!ReferenceEquals(_stylesheets[0], DefaultStylesheet)) return false;
+            for (int i = 0; i < count; i++)
+            {
+                if (!ReferenceEquals(_stylesheets[i + 1], value[i])) return false;
+            }
+            return true;
+        }
+
+        private Stylesheet _defaultStylesheet;
+        private Stylesheet DefaultStylesheet
+        {
+            get
+            {
+                if (_defaultStylesheet == null) _defaultStylesheet = Stylesheet.FromCss(DefaultCss);
+                return _defaultStylesheet;
             }
         }
 
@@ -138,7 +161,8 @@ img, image { display: inline; width: auto; height: auto; }
         {
             if (_defaultsAdded) return;
             _defaultsAdded = true;
-            AddStylesheet(DefaultCss);
+            _stylesheets.Insert(0, DefaultStylesheet);
+            _stylesheetVersion++;
         }
 
         private static System.Net.Http.HttpClient _fontHttp;
@@ -563,8 +587,8 @@ img, image { display: inline; width: auto; height: auto; }
             if (props != null)
             {
                 var ids = GetPropIds(props.GetType());
-                id = ids.IdField?.GetValue(props) as string ?? ids.IdProp?.GetValue(props) as string;
-                className = ids.ClassField?.GetValue(props) as string ?? ids.ClassProp?.GetValue(props) as string;
+                id = ids.IdGetter?.Invoke(props);
+                className = ids.ClassGetter?.Invoke(props);
             }
         }
     }

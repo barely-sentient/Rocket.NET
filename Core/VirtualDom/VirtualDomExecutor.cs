@@ -29,6 +29,31 @@ namespace Rocket.Core
             public PropertyInfo PropsProperty;
             public PropertyInfo ChildrenProperty;
             public MethodInfo RenderMethod;
+            public Action<object, object> SetProps;
+            public Action<object, object> SetChildren;
+            public Func<object, Node> Render;
+        }
+
+        private static Action<object, object> CompileSetter(PropertyInfo property)
+        {
+            if (property == null || !property.CanWrite || property.GetSetMethod() == null) return null;
+            var target = Expression.Parameter(typeof(object), "target");
+            var value = Expression.Parameter(typeof(object), "value");
+            var setMethod = property.GetSetMethod();
+            Expression instance = setMethod.IsStatic ? null : Expression.Convert(target, property.DeclaringType);
+            var assign = Expression.Assign(
+                Expression.Property(instance, property),
+                Expression.Convert(value, property.PropertyType));
+            return Expression.Lambda<Action<object, object>>(assign, target, value).Compile();
+        }
+
+        private static Func<object, Node> CompileRender(MethodInfo method)
+        {
+            if (method == null || method.GetParameters().Length != 0 || !typeof(Node).IsAssignableFrom(method.ReturnType)) return null;
+            var target = Expression.Parameter(typeof(object), "target");
+            Expression instance = method.IsStatic ? null : Expression.Convert(target, method.DeclaringType);
+            var call = Expression.Call(instance, method);
+            return Expression.Lambda<Func<object, Node>>(call, target).Compile();
         }
 
         private static readonly ConcurrentDictionary<Type, ComponentMeta> _metaCache =
@@ -240,7 +265,7 @@ namespace Rocket.Core
                 // Hook state management
                 ComponentContext.CurrentInstance = instance;
                 instance.ResetHooks();
-                Node renderedNode = meta.RenderMethod != null ? meta.RenderMethod.Invoke(component, null) as Node : RenderComponent(component);
+                Node renderedNode = meta.Render != null ? meta.Render(component) : RenderComponent(component);
                 ComponentContext.CurrentInstance = null;
 
                 bool isProvider = component is IContextProvider;
@@ -313,8 +338,8 @@ namespace Rocket.Core
 
                 ComponentContext.CurrentInstance = instance;
                 instance.ResetHooks();
-                Node renderedNode = meta.RenderMethod != null
-                    ? meta.RenderMethod.Invoke(component, null) as Node
+                Node renderedNode = meta.Render != null
+                    ? meta.Render(component)
                     : RenderComponent(component);
                 ComponentContext.CurrentInstance = null;
 
@@ -412,6 +437,9 @@ namespace Rocket.Core
                     meta.PropsProperty = t.GetProperty("Props");
                     meta.ChildrenProperty = t.GetProperty("Children");
                     meta.RenderMethod = t.GetMethod("Render", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    meta.SetProps = CompileSetter(meta.PropsProperty);
+                    meta.SetChildren = CompileSetter(meta.ChildrenProperty);
+                    meta.Render = CompileRender(meta.RenderMethod);
                 }
                 return meta;
             });
@@ -435,8 +463,7 @@ namespace Rocket.Core
         private static void SetComponentProps(object component, ComponentMeta meta, object props)
         {
             if (component == null) return;
-            PropertyInfo property = meta.PropsProperty ?? component.GetType().GetProperty("Props");
-            if (property != null && property.CanWrite) property.SetValue(component, props);
+            meta.SetProps?.Invoke(component, props);
         }
 
         /// <summary>
@@ -445,8 +472,7 @@ namespace Rocket.Core
         private static void SetComponentChildren(object component, ComponentMeta meta, Node[] children)
         {
             if (component == null) return;
-            PropertyInfo property = meta.ChildrenProperty ?? component.GetType().GetProperty("Children");
-            if (property != null && property.CanWrite) property.SetValue(component, children);
+            meta.SetChildren?.Invoke(component, children);
         }
 
         /// <summary>
@@ -456,6 +482,7 @@ namespace Rocket.Core
         {
             if (component == null) return null;
             var meta = GetMeta(component.GetType());
+            if (meta.Render != null) return meta.Render(component);
             MethodInfo method = meta.RenderMethod ?? component.GetType().GetMethod("Render", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (method == null) return null;
             return method.Invoke(component, null) as Node;

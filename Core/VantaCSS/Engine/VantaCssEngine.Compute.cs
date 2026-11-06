@@ -3,6 +3,7 @@ using Rocket.Core.DOM;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Linq;
@@ -16,57 +17,166 @@ namespace VantaCSS
     {
         private sealed class PropIds
         {
-            public FieldInfo IdField;
-            public PropertyInfo IdProp;
-            public FieldInfo ClassField;
-            public PropertyInfo ClassProp;
+            public Func<object, string> IdGetter;
+            public Func<object, string> ClassGetter;
         }
 
         private static readonly ConcurrentDictionary<Type, PropIds> _propIdCache = new ConcurrentDictionary<Type, PropIds>();
 
         private static PropIds GetPropIds(Type t)
         {
-            return _propIdCache.GetOrAdd(t, type =>
+            return _propIdCache.GetOrAdd(t, type => new PropIds
             {
-                var p = new PropIds();
-                p.IdField = type.GetField("Id") ?? type.GetField("id");
-                p.IdProp = type.GetProperty("Id") ?? type.GetProperty("id");
-                p.ClassField = type.GetField("ClassName") ?? type.GetField("className");
-                p.ClassProp = type.GetProperty("ClassName") ?? type.GetProperty("className");
-                return p;
+                IdGetter = CompileStringGetter(type, "Id", "id"),
+                ClassGetter = CompileStringGetter(type, "ClassName", "className")
             });
         }
 
-        private const int MaxRuleMatchCacheEntries = 1024;
+        private static Func<object, string> CompileStringGetter(Type type, string upperName, string lowerName)
+        {
+            var members = new List<MemberInfo>(2);
+            var field = type.GetField(upperName) ?? type.GetField(lowerName);
+            if (field != null) members.Add(field);
+            var prop = type.GetProperty(upperName) ?? type.GetProperty(lowerName);
+            if (prop != null && prop.CanRead && prop.GetIndexParameters().Length == 0) members.Add(prop);
+            if (members.Count == 0) return null;
 
-        private readonly ConcurrentDictionary<string, List<CssRule>> _ruleMatchCache =
-            new ConcurrentDictionary<string, List<CssRule>>();
+            var source = Expression.Parameter(typeof(object), "source");
+            var instance = Expression.Convert(source, type);
+            Expression body = null;
+            foreach (var member in members)
+            {
+                Expression target = member is FieldInfo f
+                    ? Expression.Field(f.IsStatic ? null : instance, f)
+                    : Expression.Property(((PropertyInfo)member).GetMethod.IsStatic ? null : instance, (PropertyInfo)member);
+                Expression asString = Expression.TypeAs(target, typeof(string));
+                body = body == null ? asString : Expression.Coalesce(body, asString);
+            }
+            return Expression.Lambda<Func<object, string>>(body, source).Compile();
+        }
+
+        private const int MaxRuleMatchCacheEntries = 1024;
+        private const long HashSeed = 1469598103934665603L;
+
+        private readonly struct RuleMatchKey : IEquatable<RuleMatchKey>
+        {
+            private readonly string _tag;
+            private readonly string _id;
+            private readonly string _className;
+            private readonly int _width;
+            private readonly int _height;
+            private readonly Orientation _orientation;
+            private readonly long _stateKey;
+            private readonly long _ancestorKey;
+            private readonly int _sheetVersion;
+
+            public RuleMatchKey(string tag, string id, string className, int width, int height, Orientation orientation, long stateKey, long ancestorKey, int sheetVersion)
+            {
+                _tag = tag;
+                _id = id;
+                _className = className;
+                _width = width;
+                _height = height;
+                _orientation = orientation;
+                _stateKey = stateKey;
+                _ancestorKey = ancestorKey;
+                _sheetVersion = sheetVersion;
+            }
+
+            public bool Equals(RuleMatchKey other)
+            {
+                return _width == other._width && _height == other._height && _orientation == other._orientation
+                    && _stateKey == other._stateKey && _ancestorKey == other._ancestorKey && _sheetVersion == other._sheetVersion
+                    && string.Equals(_tag, other._tag, StringComparison.Ordinal)
+                    && string.Equals(_id, other._id, StringComparison.Ordinal)
+                    && string.Equals(_className, other._className, StringComparison.Ordinal);
+            }
+
+            public override bool Equals(object obj) => obj is RuleMatchKey other && Equals(other);
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int hash = _tag == null ? 0 : _tag.GetHashCode();
+                    hash = hash * 31 + (_id == null ? 0 : _id.GetHashCode());
+                    hash = hash * 31 + (_className == null ? 0 : _className.GetHashCode());
+                    hash = hash * 31 + _width;
+                    hash = hash * 31 + _height;
+                    hash = hash * 31 + (int)_orientation;
+                    hash = hash * 31 + _stateKey.GetHashCode();
+                    hash = hash * 31 + _ancestorKey.GetHashCode();
+                    return hash * 31 + _sheetVersion;
+                }
+            }
+        }
+
+        private readonly ConcurrentDictionary<RuleMatchKey, List<CssRule>> _ruleMatchCache =
+            new ConcurrentDictionary<RuleMatchKey, List<CssRule>>();
+
+        private int _rootRulesVersion = -1;
+        private List<CssRule> _rootRules = new List<CssRule>();
+
+        private List<CssRule> RootRules
+        {
+            get
+            {
+                if (_rootRulesVersion == _stylesheetVersion) return _rootRules;
+                var rules = new List<CssRule>();
+                foreach (var sheet in _stylesheets)
+                {
+                    foreach (var rule in sheet.Rules)
+                    {
+                        if (string.Equals(rule.Selector?.Trim(), ":root", StringComparison.OrdinalIgnoreCase)) rules.Add(rule);
+                    }
+                }
+                _rootRules = rules;
+                _rootRulesVersion = _stylesheetVersion;
+                return rules;
+            }
+        }
 
         private List<CssRule> GetMatchingRules(string tag, string id, string className, Node node, int width, int height, Orientation orientation)
         {
-            string pseudoKey = node == null
-                ? string.Empty
-                : $"{node.Hovered}:{node.Focused}:{node.Active}:{node.Visited}:{node.Checked}:{node.Disabled}:{node.PseudoState}";
-            string ancestorKey = GetAncestorKey(node);
-            string key = $"{tag}|{id}|{className}|{width}|{height}|{orientation}|{pseudoKey}|{ancestorKey}|{Stylesheets.Count}|{_stylesheetVersion}";
+            EnsureDefaults();
+            var key = new RuleMatchKey(tag, id, className, width, height, orientation,
+                node == null ? 0 : GetStateKey(node), GetAncestorKey(node), _stylesheetVersion);
 
+            if (_ruleMatchCache.TryGetValue(key, out var cached)) return cached;
             if (_ruleMatchCache.Count >= MaxRuleMatchCacheEntries) _ruleMatchCache.Clear();
-            return _ruleMatchCache.GetOrAdd(key, _ => BuildMatchingRules(tag, id, className, node, width, height, orientation));
+            var rules = BuildMatchingRules(tag, id, className, node, width, height, orientation);
+            _ruleMatchCache[key] = rules;
+            return rules;
         }
 
-        private static string GetAncestorKey(Node node)
+        private static long HashText(long hash, string text)
         {
-            if (node == null || node.Parent == null) return string.Empty;
-            var sb = new StringBuilder();
-            var current = node.Parent;
-            while (current != null)
+            unchecked { return (hash ^ (text == null ? 0 : text.GetHashCode())) * 1099511628211L; }
+        }
+
+        private static long HashInt(long hash, int value)
+        {
+            unchecked { return (hash ^ value) * 1099511628211L; }
+        }
+
+        private static long GetStateKey(Node node)
+        {
+            int flags = (node.Hovered ? 1 : 0) | (node.Focused ? 2 : 0) | (node.Active ? 4 : 0)
+                | (node.Visited ? 8 : 0) | (node.Checked ? 16 : 0) | (node.Disabled ? 32 : 0);
+            return HashText(HashInt(HashSeed, flags), node.PseudoState);
+        }
+
+        private static long GetAncestorKey(Node node)
+        {
+            long hash = HashSeed;
+            for (var current = node?.Parent; current != null; current = current.Parent)
             {
-                string tag, id, className;
-                VantaCssEngine.GetNodeIdentity(current, out tag, out id, out className);
-                sb.Append(tag).Append(':').Append(id).Append(':').Append(className).Append(';');
-                current = current.Parent;
+                GetNodeIdentity(current, out var tag, out var id, out var className);
+                hash = HashText(hash, tag);
+                hash = HashText(hash, id);
+                hash = HashText(hash, className);
             }
-            return sb.ToString();
+            return hash;
         }
 
         private List<CssRule> BuildMatchingRules(string tag, string id, string className, Node node, int width, int height, Orientation orientation)
@@ -131,11 +241,11 @@ namespace VantaCSS
             if (props != null)
             {
                 var ids = GetPropIds(props.GetType());
-                id = ids.IdField?.GetValue(props) as string ?? ids.IdProp?.GetValue(props) as string;
-                className = ids.ClassField?.GetValue(props) as string ?? ids.ClassProp?.GetValue(props) as string;
+                id = ids.IdGetter?.Invoke(props);
+                className = ids.ClassGetter?.Invoke(props);
             }
 
-            string pseudoKey = $"{tag}|{id}|{className}|{node.Hovered}:{node.Focused}:{node.Active}:{node.Visited}:{node.Checked}:{node.Disabled}:{node.PseudoState}|{GetAncestorKey(node)}";
+            long pseudoKey = unchecked(HashText(HashText(HashText(GetStateKey(node), tag), id), className) * 31 + GetAncestorKey(node));
             if (node._styleCacheValid &&
                 node._styleCacheW == width &&
                 node._styleCacheH == height &&
@@ -158,18 +268,13 @@ namespace VantaCSS
 
             var matchingRules = GetMatchingRules(tag, id, className, node, width, height, orientation);
             // Global :root custom properties apply everywhere.
-            foreach (var sheet in Stylesheets)
+            foreach (var r in RootRules)
             {
-                foreach (var r in sheet.Rules)
+                if (!MatchesMedia(r.Media, width, height, orientation)) continue;
+                foreach (var kv in r.Declarations)
                 {
-                    // skip at-rules (they have no direct declarations we need here)
-                    if (!MatchesMedia(r.Media, width, height, orientation)) continue;
-                    if (!string.Equals(r.Selector?.Trim(), ":root", StringComparison.OrdinalIgnoreCase)) continue;
-                    foreach (var kv in r.Declarations)
-                    {
-                        if (kv.Key.StartsWith("--", StringComparison.Ordinal) && !target.ContainsKey(kv.Key))
-                            target[kv.Key] = kv.Value;
-                    }
+                    if (kv.Key.StartsWith("--", StringComparison.Ordinal) && !target.ContainsKey(kv.Key))
+                        target[kv.Key] = kv.Value;
                 }
             }
             foreach (var rule in matchingRules)
@@ -434,7 +539,14 @@ namespace VantaCSS
             root.ComputedStyle = style;
             if (root.ComputedStyles == null) root.ComputedStyles = new Dictionary<string, string>();
             root.ComputedStyles.Clear();
-            foreach (var declaration in VantaCSS.Grammar.Grammar.ParseDeclarations(style))
+            // ComputeStyle returns the same string instance while the node's style is unchanged,
+            // so the parsed declarations can be reused instead of re-tokenising every frame.
+            if (!ReferenceEquals(style, root._parsedStyleSource))
+            {
+                root._parsedStyleDeclarations = VantaCSS.Grammar.Grammar.ParseDeclarations(style);
+                root._parsedStyleSource = style;
+            }
+            foreach (var declaration in root._parsedStyleDeclarations)
                 root.ComputedStyles[declaration.Property] = declaration.Value;
 
             // Inherit CSS custom properties from parent.
