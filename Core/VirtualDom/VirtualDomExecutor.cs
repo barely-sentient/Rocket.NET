@@ -324,6 +324,11 @@ namespace Rocket.Core
         {
             if (instance == null || node == null) return;
 
+            // Node objects are rebuilt by Render(), but represent the same
+            // logical element. Carry transition state across so CSS transitions
+            // keep running instead of snapping when state changes re-render.
+            CssEngine?.TransferTransitionState(instance.VNode, node);
+
             instance.VNode = node;
             Type type = node.Type;
             var meta = GetMeta(type);

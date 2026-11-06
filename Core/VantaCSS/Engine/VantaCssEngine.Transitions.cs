@@ -81,6 +81,25 @@ namespace VantaCSS
             if (node != null) _transitionStates.Remove(node);
         }
 
+        /// <summary>
+        /// Moves transition bookkeeping from one node object to another.
+        /// The virtual DOM re-creates node objects on every re-render, so the
+        /// reconciler calls this to preserve in-flight transitions when a node
+        /// at the same logical position is replaced. Without it, a class change
+        /// that triggers a re-render would snap instead of animating because
+        /// the new node starts with no previous target/computed values.
+        /// </summary>
+        public void TransferTransitionState(Node from, Node to)
+        {
+            if (from == null || to == null || ReferenceEquals(from, to)) return;
+            if (!_transitionStates.TryGetValue(from, out var state)) return;
+            _transitionStates.Remove(from);
+            // Never overwrite state that the destination already owns.
+            if (_transitionStates.TryGetValue(to, out _)) return;
+            state.Node = to;
+            _transitionStates.Add(to, state);
+        }
+
         /// <summary>Parses a time value such as "1s", "200ms", "0.5s".</summary>
         public static double ParseTime(string value)
         {
@@ -233,12 +252,22 @@ namespace VantaCSS
             }
 
             // Numeric (with unit) interpolation.
-            if (TryParseNumber(from, out double n1, out string u1) && TryParseNumber(to, out double n2, out string u2) &&
-                string.Equals(u1, u2, StringComparison.OrdinalIgnoreCase))
+            if (TryParseNumber(from, out double n1, out string u1) && TryParseNumber(to, out double n2, out string u2))
             {
-                double n = n1 + (n2 - n1) * progress;
-                string fmt = n.ToString("0.###", CultureInfo.InvariantCulture);
-                return fmt + u1;
+                bool unitsMatch = string.Equals(u1, u2, StringComparison.OrdinalIgnoreCase);
+                if (!unitsMatch)
+                {
+                    // CSS treats unitless zero as compatible with any length unit.
+                    if (n1 == 0 && string.IsNullOrEmpty(u1)) { u1 = u2; unitsMatch = true; }
+                    else if (n2 == 0 && string.IsNullOrEmpty(u2)) { u2 = u1; unitsMatch = true; }
+                }
+
+                if (unitsMatch)
+                {
+                    double n = n1 + (n2 - n1) * progress;
+                    string fmt = n.ToString("0.###", CultureInfo.InvariantCulture);
+                    return fmt + u1;
+                }
             }
 
             // Fallback: snap at midpoint.

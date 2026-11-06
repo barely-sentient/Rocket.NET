@@ -139,6 +139,26 @@ namespace Tests
         }
 
         [Fact]
+        public void TransitionSurvivesNodeReplacement()
+        {
+            var css = ".nav { width: 0px; transition: width 1s linear; } .nav.active { width: 300px; }";
+            var engine = new VantaCSS.VantaCssEngine();
+            engine.AddStylesheet(css);
+
+            var oldNode = new Node<HTMLDivElementProps>(typeof(HTMLDivElement), new HTMLDivElementProps { ClassName = "nav" });
+            engine.ComputeStyle(oldNode, 0);
+
+            // A state-driven re-render replaces the node object at the same
+            // logical position; the transition must continue instead of snapping.
+            var newNode = new Node<HTMLDivElementProps>(typeof(HTMLDivElement), new HTMLDivElementProps { ClassName = "nav active" });
+            engine.TransferTransitionState(oldNode, newNode);
+
+            Assert.Equal("0px", engine.ComputeStyles(newNode, 0)["width"]);
+            Assert.Equal("150px", engine.ComputeStyles(newNode, 0.5)["width"]);
+            Assert.Equal("300px", engine.ComputeStyles(newNode, 2)["width"]);
+        }
+
+        [Fact]
         public void NumericTransitionInterpolates()
         {
             var css = "div { opacity: 0; transition: opacity 1s linear; } div:hover { opacity: 1; }";
