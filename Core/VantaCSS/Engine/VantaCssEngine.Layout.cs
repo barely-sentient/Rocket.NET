@@ -585,10 +585,17 @@ namespace VantaCSS
             string display = (GetStyle(style, "display") ?? "block").ToLowerInvariant();
             string flexDirection = (GetStyle(style, "flex-direction") ?? "row").ToLowerInvariant();
             bool isFlex = display == "flex" || display == "inline-flex";
+            bool isTable = display == "table" || display == "inline-table";
 
             // gap
             double gap = ParseLen(GetStyle(style, "gap") ?? GetStyle(style, "grid-gap"), contentW, vw, vh);
             if (double.IsNaN(gap)) gap = 0;
+
+            if (isTable)
+            {
+                ArrangeTable(node, children, parentBox, contentX, contentY, contentW, contentH, gap, containingBlock, vw, vh);
+                return;
+            }
 
             if (isFlex && flexDirection.StartsWith("column"))
             {
@@ -857,6 +864,550 @@ namespace VantaCSS
         // ---------------------------------------------------------------
         // Helpers
         // ---------------------------------------------------------------
+        private void ArrangeTable(Node node, Node[] children, LayoutBox parentBox, double contentX, double contentY, double contentW, double contentH, double gap, LayoutBox containingBlock, int vw, int vh)
+        {
+            var style = node.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var padding = ParseEdges(style, "padding", parentBox.Width);
+            var border = ParseEdges(style, "border-width", parentBox.Width);
+            if (border.t == 0 && border.r == 0 && border.b == 0 && border.l == 0)
+            {
+                var b2 = ParseEdgesShorthand(style, "border", parentBox.Width);
+                if (b2.t > 0 || b2.r > 0 || b2.b > 0 || b2.l > 0) border = b2;
+            }
+
+            double spacing = ParseLen(GetStyle(style, "border-spacing"), contentW, vw, vh);
+            if (double.IsNaN(spacing)) spacing = 0;
+            string borderCollapse = (GetStyle(style, "border-collapse") ?? "separate").ToLowerInvariant();
+            if (borderCollapse == "collapse") spacing = 0;
+            string tableLayout = (GetStyle(style, "table-layout") ?? "auto").ToLowerInvariant();
+
+            var allChildren = children ?? Array.Empty<Node>();
+            var captionsTop = new List<Node>();
+            var captionsBottom = new List<Node>();
+            var flatRows = new List<(Node group, Node row)>();
+
+            foreach (var ch in allChildren)
+            {
+                if (ch == null) continue;
+                var cs = ch.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                string d = (GetStyle(cs, "display") ?? DefaultDisplay(ch)).ToLowerInvariant();
+                if (d == "table-caption")
+                {
+                    string side = (GetStyle(cs, "caption-side") ?? "top").ToLowerInvariant();
+                    if (side == "bottom") captionsBottom.Add(ch); else captionsTop.Add(ch);
+                }
+                else if (d == "table-row")
+                {
+                    flatRows.Add((null, ch));
+                }
+                else if (d == "table-row-group" || d == "table-header-group" || d == "table-footer-group")
+                {
+                    foreach (var r in ch.Children ?? Array.Empty<Node>())
+                    {
+                        if (r == null) continue;
+                        var rcs = r.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        string rd = (GetStyle(rcs, "display") ?? DefaultDisplay(r)).ToLowerInvariant();
+                        if (rd == "table-row") flatRows.Add((ch, r));
+                    }
+                }
+            }
+
+            int rowCount = flatRows.Count;
+            if (rowCount == 0)
+            {
+                if (double.IsNaN(ParseLen(GetStyle(style, "height"), parentBox.Height, vw, vh)))
+                {
+                    double nh = padding.t + padding.b + border.t + border.b;
+                    if (nh < 16) nh = 16;
+                    parentBox.Height = nh;
+                    if (node.Layout != null) node.Layout.Height = nh;
+                }
+                return;
+            }
+
+            int cols = 0;
+            foreach (var (_, row) in flatRows)
+            {
+                int c = 0;
+                foreach (var cell in row.Children ?? Array.Empty<Node>())
+                {
+                    if (cell == null) continue;
+                    var cs = cell.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    string d = (GetStyle(cs, "display") ?? DefaultDisplay(cell)).ToLowerInvariant();
+                    if (d != "table-cell") continue;
+                    int span = GetColSpan(cell);
+                    if (span < 1) span = 1;
+                    c += span;
+                }
+                if (c > cols) cols = c;
+            }
+            if (cols < 1) cols = 1;
+
+            // Compute cell origins (row/col) up front so column placement accounts for
+            // rowspans from previous rows.
+            var grid = new Node[rowCount][];
+            for (int r = 0; r < rowCount; r++) grid[r] = new Node[cols];
+            var cellOrigin = new Dictionary<Node, (int r, int c)>();
+            for (int r = 0; r < rowCount; r++)
+            {
+                var (_, row) = flatRows[r];
+                foreach (var cell in row.Children ?? Array.Empty<Node>())
+                {
+                    if (cell == null) continue;
+                    var cs = cell.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    string d = (GetStyle(cs, "display") ?? DefaultDisplay(cell)).ToLowerInvariant();
+                    if (d != "table-cell") continue;
+                    int span = GetColSpan(cell);
+                    int rowspan = GetRowSpan(cell);
+                    if (span < 1) span = 1;
+                    if (rowspan < 1) rowspan = 1;
+                    int c = 0;
+                    while (c < cols && grid[r][c] != null) c++;
+                    if (c >= cols) break;
+                    if (c + span > cols) span = cols - c;
+                    for (int rr = r; rr < r + rowspan && rr < rowCount; rr++)
+                    {
+                        for (int cc = c; cc < c + span && cc < cols; cc++)
+                        {
+                            grid[rr][cc] = cell;
+                        }
+                    }
+                    cellOrigin[cell] = (r, c);
+                }
+            }
+
+            double[] colPref = new double[cols];
+            for (int i = 0; i < cols; i++) colPref[i] = 1;
+
+            if (tableLayout != "fixed")
+            {
+                foreach (var cell in cellOrigin.Keys)
+                {
+                    var (r, c) = cellOrigin[cell];
+                    int span = GetColSpan(cell);
+                    if (span < 1) span = 1;
+                    if (c + span > cols) span = cols - c;
+                    double cpref = MeasurePreferredWidth(cell, contentW, vw, vh);
+                    if (span == 1)
+                    {
+                        if (cpref > colPref[c]) colPref[c] = cpref;
+                    }
+                    else
+                    {
+                        double each = cpref / span;
+                        for (int k = 0; k < span && c + k < cols; k++)
+                        {
+                            if (each > colPref[c + k]) colPref[c + k] = each;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (flatRows.Count > 0)
+                {
+                    var (_, firstRow) = flatRows[0];
+                    foreach (var cell in firstRow.Children ?? Array.Empty<Node>())
+                    {
+                        if (cell == null) continue;
+                        if (!cellOrigin.ContainsKey(cell)) continue;
+                        var (rr, c) = cellOrigin[cell];
+                        var cs = cell.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        string d = (GetStyle(cs, "display") ?? DefaultDisplay(cell)).ToLowerInvariant();
+                        if (d != "table-cell") continue;
+                        int span = GetColSpan(cell);
+                        if (span < 1) span = 1;
+                        if (c + span > cols) span = cols - c;
+                        double w = ParseLen(GetStyle(cs, "width"), contentW, vw, vh);
+                        var pad = ParseEdges(cs, "padding", contentW);
+                        var bor = ParseEdges(cs, "border-width", contentW);
+                        if (bor.t == 0 && bor.r == 0 && bor.b == 0 && bor.l == 0)
+                        {
+                            var b2 = ParseEdgesShorthand(cs, "border", contentW);
+                            if (b2.t > 0 || b2.r > 0 || b2.b > 0 || b2.l > 0) bor = b2;
+                        }
+                        double cpref;
+                        if (double.IsNaN(w))
+                            cpref = double.NaN;
+                        else
+                            cpref = w + pad.l + pad.r + bor.l + bor.r;
+                        if (span == 1)
+                        {
+                            if (double.IsNaN(cpref)) colPref[c] = double.NaN;
+                            else if (double.IsNaN(colPref[c]) || cpref > colPref[c]) colPref[c] = cpref;
+                        }
+                        else
+                        {
+                            double each = double.IsNaN(cpref) ? double.NaN : cpref / span;
+                            for (int k = 0; k < span && c + k < cols; k++)
+                            {
+                                if (double.IsNaN(each)) colPref[c + k] = double.NaN;
+                                else if (double.IsNaN(colPref[c + k]) || each > colPref[c + k]) colPref[c + k] = each;
+                            }
+                        }
+                    }
+                }
+            }
+
+            double availCols = contentW - spacing * (cols - 1);
+            if (availCols < 0) availCols = 0;
+            double[] colWidth = new double[cols];
+
+            if (tableLayout == "fixed")
+            {
+                double totalSpec = 0;
+                int autoCount = 0;
+                for (int i = 0; i < cols; i++)
+                {
+                    if (double.IsNaN(colPref[i]))
+                    {
+                        autoCount++;
+                    }
+                    else
+                    {
+                        if (colPref[i] < 0) colPref[i] = 0;
+                        totalSpec += colPref[i];
+                    }
+                }
+                double remaining = availCols - totalSpec;
+                if (remaining < 0) remaining = 0;
+                double eachAuto = autoCount > 0 ? remaining / autoCount : 0;
+                for (int i = 0; i < cols; i++)
+                {
+                    if (double.IsNaN(colPref[i]))
+                        colWidth[i] = eachAuto;
+                    else
+                        colWidth[i] = colPref[i];
+                    if (colWidth[i] < 0) colWidth[i] = 0;
+                }
+            }
+            else
+            {
+                double totalPref = 0;
+                for (int i = 0; i < cols; i++)
+                {
+                    if (double.IsNaN(colPref[i]) || colPref[i] <= 0) colPref[i] = 1;
+                    totalPref += colPref[i];
+                }
+                if (totalPref <= 0) totalPref = cols;
+                for (int i = 0; i < cols; i++)
+                {
+                    colWidth[i] = colPref[i] / totalPref * availCols;
+                    if (colWidth[i] < 0) colWidth[i] = 0;
+                }
+            }
+
+            double[] rowHeight = new double[rowCount];
+            for (int i = 0; i < rowCount; i++) rowHeight[i] = 0;
+
+            for (int r = 0; r < rowCount; r++)
+            {
+                var (_, row) = flatRows[r];
+                foreach (var cell in row.Children ?? Array.Empty<Node>())
+                {
+                    if (cell == null) continue;
+                    if (!cellOrigin.ContainsKey(cell)) continue;
+                    var (rr, c) = cellOrigin[cell];
+                    var cs = cell.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    string d = (GetStyle(cs, "display") ?? DefaultDisplay(cell)).ToLowerInvariant();
+                    if (d != "table-cell") continue;
+                    int span = GetColSpan(cell);
+                    int rowspan = GetRowSpan(cell);
+                    if (span < 1) span = 1;
+                    if (rowspan < 1) rowspan = 1;
+                    if (c + span > cols) span = cols - c;
+
+                    double cellW = 0;
+                    for (int k = 0; k < span && c + k < cols; k++) cellW += colWidth[c + k];
+                    cellW += spacing * (span - 1);
+                    if (cellW < 0) cellW = 0;
+
+                    var slot = new LayoutBox { X = contentX, Y = contentY, Width = cellW, Height = contentH };
+                    LayoutNode(cell, slot, containingBlock, vw, vh);
+                    double measuredH = cell.Layout != null ? cell.Layout.Height : 0;
+                    if (measuredH <= 0) measuredH = 16;
+                    if (rowspan == 1)
+                    {
+                        if (measuredH > rowHeight[r]) rowHeight[r] = measuredH;
+                    }
+                    else
+                    {
+                        double per = measuredH / rowspan;
+                        for (int k = 0; k < rowspan && r + k < rowCount; k++)
+                        {
+                            if (per > rowHeight[r + k]) rowHeight[r + k] = per;
+                        }
+                    }
+                }
+            }
+            for (int r = 0; r < rowCount; r++)
+            {
+                if (rowHeight[r] <= 0) rowHeight[r] = 16;
+            }
+
+            double[] rowTop = new double[rowCount];
+
+            // captions top
+            double yCursor = contentY;
+            foreach (var cap in captionsTop)
+            {
+                var capSlot = new LayoutBox { X = contentX, Y = yCursor, Width = contentW, Height = contentH };
+                LayoutNode(cap, capSlot, containingBlock, vw, vh);
+                double ch = cap.Layout != null ? cap.Layout.Height : 0;
+                if (ch <= 0) ch = 16;
+                yCursor += ch;
+            }
+            if (captionsTop.Count > 0 && rowCount > 0) yCursor += spacing;
+
+            for (int r = 0; r < rowCount; r++)
+            {
+                rowTop[r] = yCursor;
+                yCursor += rowHeight[r];
+                if (r < rowCount - 1) yCursor += spacing;
+            }
+            if (captionsBottom.Count > 0 && rowCount > 0) yCursor += spacing;
+            foreach (var cap in captionsBottom)
+            {
+                var capSlot = new LayoutBox { X = contentX, Y = yCursor, Width = contentW, Height = contentH };
+                LayoutNode(cap, capSlot, containingBlock, vw, vh);
+                double ch = cap.Layout != null ? cap.Layout.Height : 0;
+                if (ch <= 0) ch = 16;
+                yCursor += ch;
+            }
+
+            // group boxes
+            var groupMinMax = new Dictionary<Node, (int min, int max)>();
+            for (int r = 0; r < rowCount; r++)
+            {
+                var g = flatRows[r].group;
+                if (g == null) continue;
+                if (!groupMinMax.ContainsKey(g)) groupMinMax[g] = (r, r);
+                else
+                {
+                    var (mn, mx) = groupMinMax[g];
+                    if (r < mn) mn = r;
+                    if (r > mx) mx = r;
+                    groupMinMax[g] = (mn, mx);
+                }
+            }
+            foreach (var kv in groupMinMax)
+            {
+                var g = kv.Key;
+                var (mn, mx) = kv.Value;
+                double gTop = rowTop[mn];
+                double gBottom = rowTop[mx] + rowHeight[mx];
+                var gBox = new LayoutBox { X = contentX, Y = gTop, Width = contentW, Height = gBottom - gTop };
+                SetNodeLayout(g, gBox);
+            }
+
+            // row boxes
+            for (int r = 0; r < rowCount; r++)
+            {
+                var (_, row) = flatRows[r];
+                var rBox = new LayoutBox { X = contentX, Y = rowTop[r], Width = contentW, Height = rowHeight[r] };
+                SetNodeLayout(row, rBox);
+            }
+
+            // cell origins already computed above
+
+            // final cell layout
+            foreach (var cell in cellOrigin.Keys)
+            {
+                var (r, c) = cellOrigin[cell];
+                int span = GetColSpan(cell);
+                int rowspan = GetRowSpan(cell);
+                if (span < 1) span = 1;
+                if (rowspan < 1) rowspan = 1;
+                if (c + span > cols) span = cols - c;
+                if (r + rowspan > rowCount) rowspan = rowCount - r;
+
+                double cellX = contentX;
+                for (int k = 0; k < c; k++) cellX += colWidth[k];
+                cellX += spacing * c;
+                double cellW = 0;
+                for (int k = 0; k < span; k++) cellW += colWidth[c + k];
+                cellW += spacing * (span - 1);
+
+                double cellY = rowTop[r];
+                double cellH = 0;
+                for (int k = 0; k < rowspan; k++) cellH += rowHeight[r + k];
+                cellH += spacing * (rowspan - 1);
+
+                var cs = cell.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                string valign = (GetStyle(cs, "vertical-align") ?? "middle").ToLowerInvariant();
+                if (valign == "inherit" || valign == "initial" || valign == "unset" || valign == "revert") valign = "middle";
+
+                var slot1 = new LayoutBox { X = cellX, Y = cellY, Width = cellW, Height = cellH };
+                LayoutNode(cell, slot1, containingBlock, vw, vh);
+                double contentHeight = cell.Layout != null ? cell.Layout.Height : 0;
+                if (contentHeight <= 0) contentHeight = 16;
+                if (contentHeight > cellH) contentHeight = cellH;
+
+                double offset = 0;
+                if (valign == "middle") offset = (cellH - contentHeight) / 2;
+                else if (valign == "bottom") offset = cellH - contentHeight;
+                if (offset < 0) offset = 0;
+
+                var slot2 = new LayoutBox { X = cellX, Y = cellY + offset, Width = cellW, Height = contentHeight };
+                LayoutNode(cell, slot2, containingBlock, vw, vh);
+                if (cell.Layout != null)
+                {
+                    cell.Layout.Height = cellH;
+                }
+            }
+
+            // auto height for table
+            string heightStyle = GetStyle(style, "height");
+            bool autoHeight = double.IsNaN(ParseLen(heightStyle, parentBox.Height, vw, vh));
+            string posStyle = (GetStyle(style, "position") ?? "static").ToLowerInvariant();
+            if ((posStyle == "absolute" || posStyle == "fixed") &&
+                !double.IsNaN(ParseLen(GetStyle(style, "top"), parentBox.Height, vw, vh)) &&
+                !double.IsNaN(ParseLen(GetStyle(style, "bottom"), parentBox.Height, vw, vh)))
+            {
+                autoHeight = false;
+            }
+            if (autoHeight)
+            {
+                double totalH = yCursor - contentY;
+                double newH = totalH + padding.t + padding.b + border.t + border.b;
+                if (newH < 0) newH = 0;
+                parentBox.Height = newH;
+                if (node.Layout != null) node.Layout.Height = newH;
+            }
+        }
+
+        private static int GetColSpan(Node cell)
+        {
+            try
+            {
+                var p = cell?.UntypedProps;
+                if (p == null) return 1;
+                var t = p.GetType();
+                var f = t.GetField("ColSpan");
+                var prop = t.GetProperty("ColSpan");
+                int v = 0;
+                if (f != null) v = Convert.ToInt32(f.GetValue(p) ?? 0);
+                else if (prop != null) v = Convert.ToInt32(prop.GetValue(p) ?? 0);
+                return v > 0 ? v : 1;
+            }
+            catch { return 1; }
+        }
+
+        private static int GetRowSpan(Node cell)
+        {
+            try
+            {
+                var p = cell?.UntypedProps;
+                if (p == null) return 1;
+                var t = p.GetType();
+                var f = t.GetField("RowSpan");
+                var prop = t.GetProperty("RowSpan");
+                int v = 0;
+                if (f != null) v = Convert.ToInt32(f.GetValue(p) ?? 0);
+                else if (prop != null) v = Convert.ToInt32(prop.GetValue(p) ?? 0);
+                return v > 0 ? v : 1;
+            }
+            catch { return 1; }
+        }
+
+        private double MeasurePreferredWidth(Node node, double containingW, int vw, int vh)
+        {
+            if (node == null) return 0;
+            var style = node.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var padding = ParseEdges(style, "padding", containingW);
+            var border = ParseEdges(style, "border-width", containingW);
+            if (border.t == 0 && border.r == 0 && border.b == 0 && border.l == 0)
+            {
+                var b2 = ParseEdgesShorthand(style, "border", containingW);
+                if (b2.t > 0 || b2.r > 0 || b2.b > 0 || b2.l > 0) border = b2;
+            }
+            double w = ParseLen(GetStyle(style, "width"), containingW, vw, vh);
+            if (!double.IsNaN(w))
+            {
+                return w + padding.l + padding.r + border.l + border.r;
+            }
+            string display = (GetStyle(style, "display") ?? DefaultDisplay(node)).ToLowerInvariant();
+            string text = GetNodeTextContent(node);
+            var children = node.Children ?? Array.Empty<Node>();
+            double content = 0;
+            if (children.Length == 0)
+            {
+                if (!string.IsNullOrEmpty(text))
+                    content = MeasureTextWidth(text, style, containingW, vw, vh);
+                else if (node.Type != null && (node.Type.Name ?? "").IndexOf("Image", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    var (iw, _) = GetImageDimensions(node);
+                    content = iw > 0 ? iw : 0;
+                }
+            }
+            else
+            {
+                var list = new List<Node>();
+                foreach (var c in children)
+                {
+                    if (c == null) continue;
+                    var cs = c.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    string cd = (GetStyle(cs, "display") ?? DefaultDisplay(c)).ToLowerInvariant();
+                    if (cd == "none") continue;
+                    list.Add(c);
+                }
+                if (display == "flex" || display == "inline-flex")
+                {
+                    string dir = (GetStyle(style, "flex-direction") ?? "row").ToLowerInvariant();
+                    if (dir.StartsWith("column"))
+                    {
+                        double max = 0;
+                        foreach (var c in list) max = Math.Max(max, MeasurePreferredWidth(c, containingW, vw, vh));
+                        content = max;
+                    }
+                    else
+                    {
+                        double sum = 0;
+                        foreach (var c in list) sum += MeasurePreferredWidth(c, containingW, vw, vh);
+                        content = sum;
+                    }
+                }
+                else if (display == "table" || display == "inline-table")
+                {
+                    double maxRow = 0;
+                    foreach (var child in list)
+                    {
+                        var cs = child.ComputedStyles ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        string cd = (GetStyle(cs, "display") ?? DefaultDisplay(child)).ToLowerInvariant();
+                        Node[] rows = (cd == "table-row-group" || cd == "table-header-group" || cd == "table-footer-group")
+                            ? (child.Children ?? Array.Empty<Node>())
+                            : new[] { child };
+                        foreach (var r in rows)
+                        {
+                            if (r == null) continue;
+                            double rowSum = 0;
+                            foreach (var cell in r.Children ?? Array.Empty<Node>())
+                            {
+                                rowSum += MeasurePreferredWidth(cell, containingW, vw, vh);
+                            }
+                            if (rowSum > maxRow) maxRow = rowSum;
+                        }
+                    }
+                    content = maxRow;
+                }
+                else if (display.Contains("inline"))
+                {
+                    double sum = 0;
+                    foreach (var c in list) sum += MeasurePreferredWidth(c, containingW, vw, vh);
+                    content = sum;
+                }
+                else
+                {
+                    double max = 0;
+                    foreach (var c in list) max = Math.Max(max, MeasurePreferredWidth(c, containingW, vw, vh));
+                    content = max;
+                }
+            }
+            double total = content + padding.l + padding.r + border.l + border.r;
+            if (total < 0) total = 0;
+            return total;
+        }
+
         private void SetNodeLayout(Node node, LayoutBox box)
         {
             if (node == null || box == null) return;

@@ -8,6 +8,9 @@ namespace Rocket.Core.Components
 
     public class HTMLTableElementProps : IntrinsicAttributes
     {
+        public int Border { get; set; }
+        public int CellPadding { get; set; }
+        public int CellSpacing { get; set; }
     }
 }
 

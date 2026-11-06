@@ -65,7 +65,8 @@ select { padding: 4px; }
 ul, ol, menu, dir { display: block; margin: 1em 0; padding-left: 40px; list-style-type: disc; }
 ol { list-style-type: decimal; }
 li { display: list-item; }
-table { display: table; border-collapse: separate; border-spacing: 2px; text-indent: initial; box-sizing: border-box; }
+table { display: table; border-collapse: separate; border-spacing: 2px; text-indent: initial; box-sizing: border-box; border: 1px solid #808080; }
+td, th { border: 1px solid #808080; }
 thead, tbody, tfoot { display: table-row-group; vertical-align: middle; border-color: inherit; }
 tr { display: table-row; vertical-align: inherit; border-color: inherit; }
 td, th { display: table-cell; vertical-align: inherit; padding: 2px; }
@@ -670,6 +671,15 @@ img, image { display: inline; width: auto; height: auto; }
             case "em": return normalizedTypeName == "em";
             case "code": return normalizedTypeName == "code";
             case "pre": return normalizedTypeName == "pre";
+            case "tr": return normalizedTypeName == "tablerow";
+            case "td": return normalizedTypeName == "tablecell";
+            case "th": return normalizedTypeName == "tableheadercell";
+            case "thead": return normalizedTypeName == "tableheadergroup"; // no component, harmless
+            case "tbody": return normalizedTypeName == "tablerowgroup";
+            case "tfoot": return normalizedTypeName == "tablefootergroup";
+            case "caption": return normalizedTypeName == "tablecaption";
+            case "col": return normalizedTypeName == "tablecolumn";
+            case "colgroup": return normalizedTypeName == "tablecolumngroup";
             default: return false;
         }
     }
